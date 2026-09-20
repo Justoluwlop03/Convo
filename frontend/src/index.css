@@ -895,6 +895,8 @@ button {
   display: flex;
   align-items: flex-end;
   gap: 0.6rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .message-row .avatar.tiny {
@@ -913,6 +915,7 @@ button {
 .message-bubble {
   min-width: 0;
   max-width: min(70%, 440px);
+  overflow: hidden;
   border-radius: 18px 18px 18px 6px;
   background: rgba(30, 41, 59, 0.95);
   border: 1px solid rgba(148, 163, 184, 0.14);
@@ -928,6 +931,8 @@ button {
   margin: 0;
   color: #edf4ff;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .message-bubble > .message-meta > span:first-child {
