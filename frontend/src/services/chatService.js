@@ -15,7 +15,7 @@ function normalizeChat(chat, currentUserId) {
         participant: participantFor(chat, currentUserId),
         lastMessage: chat.lastMessage?.text || 'Start a conversation',
         updatedAt: formatTime(chat.updatedAt),
-        unreadCount: 0,
+        unreadCount: Number(chat.unreadCount) || 0,
     }
 }
 

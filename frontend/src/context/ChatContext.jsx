@@ -35,7 +35,10 @@ export function ChatProvider({ children }) {
         if (!user?.id) return []
         const nextChats = await chatService.getChats(user.id)
         setChats((current) => {
-            const merged = nextChats.map((chat) => ({ ...chat, unreadCount: current.find((item) => item.id === chat.id)?.unreadCount || 0 }))
+            const merged = nextChats.map((chat) => ({
+                ...chat,
+                unreadCount: Math.max(chat.unreadCount || 0, current.find((item) => item.id === chat.id)?.unreadCount || 0),
+            }))
             persistChats(merged)
             return merged
         })
