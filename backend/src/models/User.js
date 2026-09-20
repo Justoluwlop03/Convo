@@ -10,6 +10,9 @@ const userSchema = new mongoose.Schema({
   avatarPublicId: { type: String, default: '', select: false },
   isOnline: { type: Boolean, default: false },
   lastSeen: { type: Date, default: Date.now },
+  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  sentFriendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  receivedFriendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true })
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {

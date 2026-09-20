@@ -3,6 +3,7 @@ import { z } from 'zod'
 import Message from '../models/Message.js'
 import Chat from '../models/Chat.js'
 import { httpError } from '../middleware/errorMiddleware.js'
+import { requireChatFriendship } from '../utils/friendships.js'
 
 const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
 const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
@@ -48,6 +49,7 @@ async function memberChat(chatId, userId) {
   if (!mongoose.isValidObjectId(chatId)) throw httpError(400, 'Invalid chat id')
   const chat = await Chat.findOne({ _id: chatId, participants: userId })
   if (!chat) throw httpError(404, 'Chat not found')
+  await requireChatFriendship(chat, userId)
   return chat
 }
 

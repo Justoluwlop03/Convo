@@ -4,6 +4,7 @@ import Chat from '../models/Chat.js'
 import Message from '../models/Message.js'
 import User from '../models/User.js'
 import { messageView } from '../controllers/messageController.js'
+import { areFriends } from '../utils/friendships.js'
 
 const onlineSockets = new Map()
 const roomFor = chatId => `chat:${chatId}`
@@ -11,6 +12,12 @@ const userRoomFor = userId => `user:${userId}`
 
 function isMember(chat, userId) {
   return chat?.participants.some(participant => participant.toString() === userId.toString())
+}
+
+async function canUseChat(chat, userId) {
+  if (!isMember(chat, userId)) return false
+  const otherUserId = chat.participants.find(participant => participant.toString() !== userId.toString())
+  return Boolean(otherUserId && await areFriends(userId, otherUserId))
 }
 
 export function configureSocket(io) {
@@ -39,7 +46,7 @@ export function configureSocket(io) {
     socket.on('join_chat', async ({ chatId } = {}, acknowledge) => {
       if (!mongoose.isValidObjectId(chatId)) return acknowledge?.({ error: 'Invalid chat id' })
       const chat = await Chat.findById(chatId)
-      if (!isMember(chat, userId)) return acknowledge?.({ error: 'Chat access denied' })
+      if (!(await canUseChat(chat, userId))) return acknowledge?.({ error: 'Chat access denied' })
       socket.join(roomFor(chatId))
       acknowledge?.({ ok: true })
     })
@@ -53,7 +60,7 @@ export function configureSocket(io) {
       try {
         const cleanText = String(text || '').trim()
         const chat = mongoose.isValidObjectId(chatId) ? await Chat.findById(chatId) : null
-        if (!isMember(chat, userId)) throw new Error('Chat access denied')
+        if (!(await canUseChat(chat, userId))) throw new Error('You can only chat with accepted friends')
         if (!cleanText || cleanText.length > 5000) throw new Error('Message text is invalid')
         let replyMessage = null
         if (replyTo) {
@@ -77,8 +84,14 @@ export function configureSocket(io) {
       }
     })
 
-    socket.on('typing', ({ chatId } = {}) => socket.to(roomFor(chatId)).emit('typing_started', { userId, chatId }))
-    socket.on('stop_typing', ({ chatId } = {}) => socket.to(roomFor(chatId)).emit('typing_stopped', { userId, chatId }))
+    socket.on('typing', async ({ chatId } = {}) => {
+      const chat = mongoose.isValidObjectId(chatId) ? await Chat.findById(chatId) : null
+      if (await canUseChat(chat, userId)) socket.to(roomFor(chatId)).emit('typing_started', { userId, chatId })
+    })
+    socket.on('stop_typing', async ({ chatId } = {}) => {
+      const chat = mongoose.isValidObjectId(chatId) ? await Chat.findById(chatId) : null
+      if (await canUseChat(chat, userId)) socket.to(roomFor(chatId)).emit('typing_stopped', { userId, chatId })
+    })
 
     socket.on('message_delivered', async ({ messageId, chatId } = {}) => {
       if (!mongoose.isValidObjectId(messageId) || !mongoose.isValidObjectId(chatId)) return

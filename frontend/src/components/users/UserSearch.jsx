@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react'
+import { Search, UserPlus } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useChat } from '../../context/ChatContext'
@@ -79,6 +79,17 @@ export default function UserSearch() {
         }
     }
 
+    const sendRequest = async (user) => {
+        try {
+            const updated = await userService.sendFriendRequest(user.id)
+            const replaceUser = (users) => users.map(item => item.id === updated.id ? updated : item)
+            setRecommendedUsers(replaceUser)
+            setSearchResults(replaceUser)
+        } catch (err) {
+            setError(err.response?.data?.message || err.message || 'Unable to send friend request.')
+        }
+    }
+
     return (
         <div className="search-panel">
             <div className="search-field">
@@ -103,7 +114,7 @@ export default function UserSearch() {
             {!hasQuery && (
                 <div className="recommended-header">
                     <h2>Recommended people</h2>
-                    <p>People you can start chatting with.</p>
+                    <p>Send a request before you can start chatting.</p>
                 </div>
             )}
 
@@ -115,13 +126,18 @@ export default function UserSearch() {
 
             <div className="search-results">
                 {visibleUsers.map((user) => (
-                    <button type="button" key={user.id} className="search-result" onClick={() => handleOpenChat(user)}>
+                    <div key={user.id} className="search-result">
+                        <button type="button" className="search-result-profile" onClick={() => navigate(`/profile/${user.id}`)}>
                         <UserAvatar user={user} alt={`${user.username}'s profile`} />
                         <div>
                             <strong>{user.username}</strong>
                             <small>{user.online ? 'online now' : 'offline'}</small>
                         </div>
                     </button>
+                        {user.relationship === 'friends' ? <button type="button" className="ghost-button compact-action" onClick={() => handleOpenChat(user)}>Message</button>
+                            : user.relationship === 'incoming' ? <button type="button" className="ghost-button compact-action" onClick={() => navigate('/requests')}>Respond</button>
+                                : <button type="button" className="primary-button compact-action" disabled={user.relationship === 'outgoing'} onClick={() => sendRequest(user)}><UserPlus size={15} /> {user.relationship === 'outgoing' ? 'Requested' : 'Add friend'}</button>}
+                    </div>
                 ))}
             </div>
         </div>

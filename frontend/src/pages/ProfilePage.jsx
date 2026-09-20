@@ -1,4 +1,4 @@
-import { ArrowLeft, ImagePlus, LogOut, MessageCircle, Pencil, Save, Trash2, X } from 'lucide-react'
+import { ArrowLeft, Check, ImagePlus, LogOut, MessageCircle, Pencil, Save, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -96,6 +96,19 @@ export default function ProfilePage() {
         }
     }
 
+    const updateRelationship = async (action) => {
+        setSaving(true)
+        setError('')
+        try {
+            const updated = await action(profile.id)
+            setProfile(updated)
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || 'Unable to update friend request.')
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (loading) return <div className="profile-page"><div className="profile-card">Loading profile...</div></div>
 
     return (
@@ -137,7 +150,12 @@ export default function ProfilePage() {
                         </div>
                         <div className="profile-actions"><button type="button" className="primary-button danger" onClick={logout}><LogOut size={16} /> Logout</button></div>
                     </>
-                ) : <div className="profile-actions"><button type="button" className="primary-button" onClick={startChat}><MessageCircle size={16} /> Message</button></div>}
+                ) : <div className="profile-actions">
+                    {profile?.relationship === 'friends' && <button type="button" className="primary-button" onClick={startChat}><MessageCircle size={16} /> Message</button>}
+                    {profile?.relationship === 'none' && <button type="button" className="primary-button" disabled={saving} onClick={() => updateRelationship(userService.sendFriendRequest)}><UserPlus size={16} /> Add friend</button>}
+                    {profile?.relationship === 'outgoing' && <button type="button" className="ghost-button" disabled>Friend request sent</button>}
+                    {profile?.relationship === 'incoming' && <><button type="button" className="primary-button" disabled={saving} onClick={() => updateRelationship(userService.acceptFriendRequest)}><Check size={16} /> Accept request</button><button type="button" className="ghost-button" disabled={saving} onClick={() => updateRelationship(userService.declineFriendRequest)}>Decline</button></>}
+                </div>}
             </div>
         </div>
     )

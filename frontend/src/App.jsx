@@ -8,6 +8,7 @@ import RegisterPage from './pages/RegisterPage'
 import ChatPage from './pages/ChatPage'
 import ProfilePage from './pages/ProfilePage'
 import SearchPage from './pages/SearchPage'
+import FriendRequestsPage from './pages/FriendRequestsPage'
 import PwaStatus from './components/pwa/PwaStatus'
 import './App.css'
 
@@ -33,6 +34,7 @@ function AppShell() {
         >
           <Route index element={<ChatPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/requests" element={<FriendRequestsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />
         </Route>
