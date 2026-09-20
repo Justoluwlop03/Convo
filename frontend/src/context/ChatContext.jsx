@@ -3,11 +3,19 @@ import { io } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 import { chatService } from '../services/chatService'
 import { userService } from '../services/userService'
+import { getQueuedMessages, loadConversations, loadMessages, queueMessage, removeQueuedMessage, saveConversations, saveMessages } from '../services/offline/database'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
 
 const ChatContext = createContext(null)
 
+function temporaryMessage(chatId, text, user) {
+    const id = `offline-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`
+    return { id, chatId, text, sender: user, senderId: user.id, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), createdAt: new Date().toISOString(), isOwn: true, status: 'pending' }
+}
+
 export function ChatProvider({ children }) {
     const { user, token } = useAuth()
+    const isOnline = useOnlineStatus()
     const [chats, setChats] = useState([])
     const [messagesByChat, setMessagesByChat] = useState({})
     const [activeChatId, setActiveChatId] = useState(null)
@@ -20,198 +28,145 @@ export function ChatProvider({ children }) {
 
     const selectedChat = chats.find((chat) => chat.id === activeChatId) ?? null
     const activeMessages = selectedChat ? messagesByChat[selectedChat.id] ?? [] : []
+    const persistChats = useCallback((nextChats) => { if (user?.id) saveConversations(user.id, nextChats).catch(() => {}) }, [user?.id])
+    const persistMessages = useCallback((chatId, messages) => { if (user?.id) saveMessages(user.id, chatId, messages).catch(() => {}) }, [user?.id])
 
-    useEffect(() => {
-        activeChatIdRef.current = activeChatId
-    }, [activeChatId])
-
-    const refreshChats = async () => {
-        if (!user?.id) return
+    const refreshChats = useCallback(async () => {
+        if (!user?.id) return []
         const nextChats = await chatService.getChats(user.id)
         setChats(nextChats)
-        if ((!activeChatId || !nextChats.some((chat) => chat.id === activeChatId)) && nextChats[0]) {
-            setActiveChatId(nextChats[0].id)
+        persistChats(nextChats)
+        setActiveChatId((current) => (!current || !nextChats.some((chat) => chat.id === current)) && nextChats[0] ? nextChats[0].id : current)
+        return nextChats
+    }, [persistChats, user?.id])
+
+    const updateMessages = useCallback((chatId, updater) => {
+        setMessagesByChat((current) => {
+            const nextMessages = updater(current[chatId] || [])
+            persistMessages(chatId, nextMessages)
+            return { ...current, [chatId]: nextMessages }
+        })
+    }, [persistMessages])
+
+    const flushOutbox = useCallback(async () => {
+        if (!user?.id || !isOnline) return
+        const queued = await getQueuedMessages(user.id).catch(() => [])
+        for (const queuedMessage of queued) {
+            updateMessages(queuedMessage.chatId, (messages) => messages.map((message) => message.id === queuedMessage.id ? { ...message, status: 'sending' } : message))
+            try {
+                const sent = await chatService.sendMessage(queuedMessage.chatId, queuedMessage.text, user.id)
+                updateMessages(queuedMessage.chatId, (messages) => messages.map((message) => message.id === queuedMessage.id ? { ...sent, isOwn: true } : message))
+                await removeQueuedMessage(user.id, queuedMessage.id)
+                await refreshChats().catch(() => {})
+            } catch {
+                updateMessages(queuedMessage.chatId, (messages) => messages.map((message) => message.id === queuedMessage.id ? { ...message, status: 'failed' } : message))
+                break
+            }
         }
-    }
+    }, [isOnline, refreshChats, updateMessages, user?.id])
+
+    useEffect(() => { activeChatIdRef.current = activeChatId }, [activeChatId])
+
+    useEffect(() => {
+        if (!user?.id) { setChats([]); setMessagesByChat({}); setActiveChatId(null); return }
+        loadConversations(user.id).then((cachedChats) => {
+            if (cachedChats.length) { setChats(cachedChats); setActiveChatId((current) => current || cachedChats[0]?.id || null) }
+        }).catch(() => {})
+        if (isOnline) refreshChats().catch(() => {})
+    }, [isOnline, refreshChats, user?.id])
 
     useEffect(() => {
         if (!token || !user?.id) return undefined
-        refreshChats().catch(() => setChats([]))
-
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-        const socketUrl = apiUrl.replace(/\/api\/?$/, '')
-        const socket = io(socketUrl, { auth: { token } })
+        const socket = io(apiUrl.replace(/\/api\/?$/, ''), { auth: { token } })
         socketRef.current = socket
-
         socket.on('connect', () => {
             const chatId = activeChatIdRef.current
-            if (!chatId) return
-            socket.emit('join_chat', { chatId })
-            socket.emit('messages_read', { chatId })
+            if (chatId) { socket.emit('join_chat', { chatId }); socket.emit('messages_read', { chatId }) }
+            flushOutbox().catch(() => {})
         })
-
         socket.on('message_received', ({ message }) => {
-            const normalizedMessage = {
-                ...message,
-                senderId: message.sender?.id || message.sender,
-                timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isOwn: (message.sender?.id || message.sender) === user.id,
-            }
-            setMessagesByChat((current) => {
-                const existing = current[message.chatId] || []
-                if (existing.some((item) => item.id === normalizedMessage.id)) return current
-                return { ...current, [message.chatId]: [...existing, normalizedMessage] }
-            })
-            setChats((current) => current.map((chat) => chat.id === message.chatId
-                ? { ...chat, lastMessage: message.text, updatedAt: normalizedMessage.timestamp }
-                : chat))
+            const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
+            updateMessages(message.chatId, (messages) => messages.some((item) => item.id === normalized.id) ? messages : [...messages, normalized])
+            setChats((current) => { const next = current.map((chat) => chat.id === message.chatId ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp } : chat); persistChats(next); return next })
             socket.emit('message_delivered', { messageId: message.id, chatId: message.chatId })
-            if (activeChatIdRef.current === message.chatId) {
-                socket.emit('messages_read', { chatId: message.chatId })
-            }
+            if (activeChatIdRef.current === message.chatId) socket.emit('messages_read', { chatId: message.chatId })
         })
-
         socket.on('message_status', ({ chatId, messageId, status, deliveredAt, readAt }) => {
             messageStatusByIdRef.current[messageId] = { status, deliveredAt, readAt, read: status === 'read' }
-            setMessagesByChat((current) => ({
-                ...current,
-                [chatId]: (current[chatId] || []).map((message) => message.id === messageId
-                    ? { ...message, status, deliveredAt, readAt, read: status === 'read' }
-                    : message),
-            }))
+            updateMessages(chatId, (messages) => messages.map((message) => message.id === messageId ? { ...message, status, deliveredAt, readAt, read: status === 'read' } : message))
         })
-
         socket.on('messages_read', ({ chatId, messageIds, readAt }) => {
-            const readMessageIds = new Set(messageIds)
-            messageIds.forEach((messageId) => {
-                messageStatusByIdRef.current[messageId] = { status: 'read', read: true, deliveredAt: readAt, readAt }
-            })
-            setMessagesByChat((current) => ({
-                ...current,
-                [chatId]: (current[chatId] || []).map((message) => readMessageIds.has(message.id)
-                    ? { ...message, status: 'read', read: true, deliveredAt: readAt, readAt }
-                    : message),
-            }))
+            const ids = new Set(messageIds)
+            messageIds.forEach((messageId) => { messageStatusByIdRef.current[messageId] = { status: 'read', read: true, readAt } })
+            updateMessages(chatId, (messages) => messages.map((message) => ids.has(message.id) ? { ...message, status: 'read', read: true, readAt } : message))
         })
-
         socket.on('typing_started', ({ userId, chatId }) => {
             if (!chatId || userId === user.id) return
-            clearTimeout(typingTimeoutsRef.current[chatId])
-            setTypingUsersByChat((current) => ({ ...current, [chatId]: userId }))
-            typingTimeoutsRef.current[chatId] = setTimeout(() => {
-                setTypingUsersByChat((current) => ({ ...current, [chatId]: null }))
-            }, 3500)
+            clearTimeout(typingTimeoutsRef.current[chatId]); setTypingUsersByChat((current) => ({ ...current, [chatId]: userId }))
+            typingTimeoutsRef.current[chatId] = setTimeout(() => setTypingUsersByChat((current) => ({ ...current, [chatId]: null })), 3500)
         })
+        socket.on('typing_stopped', ({ userId, chatId }) => { clearTimeout(typingTimeoutsRef.current[chatId]); setTypingUsersByChat((current) => current[chatId] === userId ? { ...current, [chatId]: null } : current) })
+        return () => { Object.values(typingTimeoutsRef.current).forEach(clearTimeout); typingTimeoutsRef.current = {}; socket.disconnect(); socketRef.current = null }
+    }, [flushOutbox, persistChats, token, updateMessages, user?.id])
 
-        socket.on('typing_stopped', ({ userId, chatId }) => {
-            clearTimeout(typingTimeoutsRef.current[chatId])
-            setTypingUsersByChat((current) => current[chatId] === userId ? { ...current, [chatId]: null } : current)
-        })
-
-        return () => {
-            Object.values(typingTimeoutsRef.current).forEach(clearTimeout)
-            typingTimeoutsRef.current = {}
-            socket.disconnect()
-            socketRef.current = null
-        }
-    }, [token, user?.id])
+    useEffect(() => { if (isOnline) flushOutbox().catch(() => {}) }, [flushOutbox, isOnline])
 
     useEffect(() => {
         if (!activeChatId || !user?.id) return undefined
-        chatService.getMessages(activeChatId, user.id)
-            .then((messages) => {
-                setMessagesByChat((current) => ({ ...current, [activeChatId]: messages }))
-                socketRef.current?.emit('messages_read', { chatId: activeChatId })
-            })
-            .catch(() => setMessagesByChat((current) => ({ ...current, [activeChatId]: [] })))
-
+        let active = true
+        loadMessages(user.id, activeChatId).then((cached) => { if (active && cached.length) setMessagesByChat((current) => ({ ...current, [activeChatId]: cached })) }).catch(() => {})
+        if (isOnline) chatService.getMessages(activeChatId, user.id).then((messages) => { if (active) { updateMessages(activeChatId, () => messages); socketRef.current?.emit('messages_read', { chatId: activeChatId }) } }).catch(() => {})
         const socket = socketRef.current
-        if (!socket) return undefined
-        socket.emit('join_chat', { chatId: activeChatId })
-        return () => socket.emit('leave_chat', { chatId: activeChatId })
-    }, [activeChatId, user?.id])
+        socket?.emit('join_chat', { chatId: activeChatId })
+        return () => { active = false; socket?.emit('leave_chat', { chatId: activeChatId }) }
+    }, [activeChatId, isOnline, updateMessages, user?.id])
 
-    const selectChat = (chatId) => {
-        setActiveChatId(chatId)
-    }
-
-    const startTyping = useCallback(() => {
-        if (activeChatId) socketRef.current?.emit('typing', { chatId: activeChatId })
-    }, [activeChatId])
-
-    const stopTyping = useCallback(() => {
-        if (activeChatId) socketRef.current?.emit('stop_typing', { chatId: activeChatId })
-    }, [activeChatId])
-
+    const selectChat = (chatId) => setActiveChatId(chatId)
+    const startTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
+    const stopTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('stop_typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
     const searchUsers = useCallback((query) => userService.searchUsers(query), [])
 
     const openChat = async (otherUser) => {
-        const existingChat = chats.find((chat) => chat.participant.id === otherUser.id)
-        if (existingChat) {
-            setActiveChatId(existingChat.id)
-            return existingChat
-        }
-
-        const newChat = await chatService.createChat(otherUser.id, user.id)
-        setChats((current) => [newChat, ...current.filter((chat) => chat.id !== newChat.id)])
-        setActiveChatId(newChat.id)
-        return newChat
+        const existing = chats.find((chat) => chat.participant.id === otherUser.id)
+        if (existing) { setActiveChatId(existing.id); return existing }
+        const nextChat = await chatService.createChat(otherUser.id, user.id)
+        setChats((current) => { const next = [nextChat, ...current.filter((chat) => chat.id !== nextChat.id)]; persistChats(next); return next })
+        setActiveChatId(nextChat.id)
+        return nextChat
     }
 
     const sendMessage = async (text) => {
         if (!activeChatId || !text.trim() || !user?.id) return null
         const socket = socketRef.current
-        if (socket?.connected) {
-            return new Promise((resolve, reject) => {
-                socket.emit('send_message', { chatId: activeChatId, text }, (response) => {
-                    if (response?.error) return reject(new Error(response.error))
-                    const message = {
-                        ...response.message,
-                        ...(messageStatusByIdRef.current[response.message.id] || {}),
-                        senderId: user.id,
-                        timestamp: new Date(response.message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        isOwn: true,
-                    }
-                    setMessagesByChat((current) => ({ ...current, [activeChatId]: [...(current[activeChatId] || []), message] }))
-                    setChats((current) => current.map((chat) => chat.id === activeChatId ? { ...chat, lastMessage: message.text, updatedAt: message.timestamp } : chat))
-                    resolve(message)
-                })
-            })
+        if (isOnline && socket?.connected) {
+            return new Promise((resolve, reject) => socket.emit('send_message', { chatId: activeChatId, text }, (response) => {
+                if (response?.error) return reject(new Error(response.error))
+                const message = { ...response.message, ...(messageStatusByIdRef.current[response.message.id] || {}), senderId: user.id, timestamp: new Date(response.message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: true }
+                updateMessages(activeChatId, (messages) => [...messages, message])
+                setChats((current) => { const next = current.map((chat) => chat.id === activeChatId ? { ...chat, lastMessage: message.text, updatedAt: message.timestamp } : chat); persistChats(next); return next })
+                resolve(message)
+            }))
         }
-        const message = await chatService.sendMessage(activeChatId, text, user.id)
-        setMessagesByChat((current) => ({ ...current, [activeChatId]: [...(current[activeChatId] || []), message] }))
-        return message
+        if (isOnline) {
+            try {
+                const message = await chatService.sendMessage(activeChatId, text, user.id)
+                updateMessages(activeChatId, (messages) => [...messages, { ...message, isOwn: true }])
+                return message
+            } catch { /* Store the unsent message below. */ }
+        }
+        const pending = temporaryMessage(activeChatId, text, user)
+        updateMessages(activeChatId, (messages) => [...messages, pending])
+        await queueMessage(user.id, pending).catch(() => {})
+        return pending
     }
 
-    const value = useMemo(
-        () => ({
-            chats,
-            activeChatId,
-            selectedChat,
-            activeMessages,
-            typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null,
-            searchResults,
-            selectChat,
-            searchUsers,
-            openChat,
-            sendMessage,
-            startTyping,
-            stopTyping,
-            refreshChats,
-            setSearchResults,
-        }),
-        [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping],
-    )
-
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, openChat, sendMessage, startTyping, stopTyping, refreshChats, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping, refreshChats])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 
 export function useChat() {
     const context = useContext(ChatContext)
-
-    if (!context) {
-        throw new Error('useChat must be used within a ChatProvider')
-    }
-
+    if (!context) throw new Error('useChat must be used within a ChatProvider')
     return context
 }

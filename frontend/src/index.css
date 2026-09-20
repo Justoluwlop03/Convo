@@ -30,6 +30,56 @@ body {
   overflow-x: hidden;
 }
 
+.pwa-notices {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 100;
+  display: grid;
+  gap: 0.45rem;
+  width: min(calc(100% - 1.5rem), 31rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pwa-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.28);
+  color: #e5eefb;
+  font-size: 0.82rem;
+  pointer-events: auto;
+}
+
+.pwa-notice button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.32rem 0.52rem;
+  background: #2563eb;
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.pwa-notice .notice-dismiss {
+  padding: 0 0.2rem;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 1.2rem;
+}
+
+.offline-notice { background: rgba(127, 29, 29, 0.96); }
+
 a {
   color: inherit;
   text-decoration: none;

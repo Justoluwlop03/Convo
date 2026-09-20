@@ -1,10 +1,14 @@
-import { Check, CheckCheck } from 'lucide-react'
+import { Check, CheckCheck, Clock3, AlertCircle } from 'lucide-react'
 import UserAvatar from '../users/UserAvatar'
 
 export default function MessageBubble({ message, isOwn }) {
-    const statusIcon = message.status === 'sent'
-        ? <Check size={15} strokeWidth={2.5} />
-        : <CheckCheck size={15} strokeWidth={2.5} />
+    const statusIcon = message.status === 'pending' || message.status === 'sending'
+        ? <Clock3 size={14} strokeWidth={2.5} />
+        : message.status === 'failed'
+            ? <AlertCircle size={14} strokeWidth={2.5} />
+            : message.status === 'sent'
+                ? <Check size={15} strokeWidth={2.5} />
+                : <CheckCheck size={15} strokeWidth={2.5} />
 
     return (
         <div className={`message-row ${isOwn ? 'own' : ''}`}>
