@@ -15,7 +15,10 @@ import { configureSocket } from './socket/socket.js'
 import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 import { configureCloudinary } from './config/cloudinary.js'
 
-dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../frontend/src/services/.env') })
+// Load the backend configuration regardless of the directory used to start Node.
+// The previous path pointed into the frontend source tree, so the API ignored
+// backend/.env and authentication could not access its database/JWT settings.
+dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env') })
 configureCloudinary()
 
 const app = express()
