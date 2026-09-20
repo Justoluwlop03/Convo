@@ -10,18 +10,15 @@ function isStandalone() {
 }
 
 export default function InstallConvoButton({ compact = false }) {
-  const [prompt, setPrompt] = useState(null)
+  const [prompt, setPrompt] = useState(() => window.__convoInstallPrompt || null)
   const [installed, setInstalled] = useState(isStandalone)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('convo-install-dismissed') === 'true')
   const [showIosGuide, setShowIosGuide] = useState(false)
-  const [unavailableMessage, setUnavailableMessage] = useState('')
+  const [showInstallModal, setShowInstallModal] = useState(false)
   const ios = isIosDevice()
 
   useEffect(() => {
-    const onBeforeInstallPrompt = (event) => {
-      event.preventDefault()
-      setPrompt(event)
-    }
+    const onPromptReady = () => setPrompt(window.__convoInstallPrompt || null)
     const onInstalled = () => {
       setInstalled(true)
       setPrompt(null)
@@ -30,28 +27,31 @@ export default function InstallConvoButton({ compact = false }) {
     const displayMode = window.matchMedia?.('(display-mode: standalone)')
     const onDisplayModeChange = () => setInstalled(isStandalone())
 
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+    window.addEventListener('convo-install-prompt-ready', onPromptReady)
     window.addEventListener('appinstalled', onInstalled)
     displayMode?.addEventListener?.('change', onDisplayModeChange)
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+      window.removeEventListener('convo-install-prompt-ready', onPromptReady)
       window.removeEventListener('appinstalled', onInstalled)
       displayMode?.removeEventListener?.('change', onDisplayModeChange)
     }
   }, [])
 
-  const install = async () => {
+  const install = () => {
     if (ios) {
       setShowIosGuide(true)
       return
     }
-    if (!prompt) {
-      setUnavailableMessage('Install is not ready yet. Refresh after the app finishes loading, or use Chrome, Edge, or Safari.')
-      return
-    }
+    setShowInstallModal(true)
+  }
+
+  const continueInstall = async () => {
+    if (!prompt) return
     await prompt.prompt()
     const result = await prompt.userChoice
     setPrompt(null)
+    window.__convoInstallPrompt = null
+    setShowInstallModal(false)
     if (result.outcome !== 'accepted') {
       localStorage.setItem('convo-install-dismissed', 'true')
       setDismissed(true)
@@ -67,8 +67,22 @@ export default function InstallConvoButton({ compact = false }) {
         {!compact && <span>Install</span>}
       </button>
 
-      {unavailableMessage && (
-        <div className="install-unavailable" role="status">{unavailableMessage}</div>
+      {showInstallModal && (
+        <div className="ios-install-layer" role="presentation" onClick={() => setShowInstallModal(false)}>
+          <section className="ios-install-sheet" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={(event) => event.stopPropagation()}>
+            <div className="ios-install-heading">
+              <div>
+                <h2 id="install-title">Install Convo</h2>
+                <p>{prompt ? 'Install Convo for quicker access and a dedicated app window.' : 'The browser has not made installation available yet. Reload after the service worker finishes registering, then try again in Chrome, Edge, or Safari.'}</p>
+              </div>
+              <button type="button" className="icon-button" onClick={() => setShowInstallModal(false)} aria-label="Close install dialog"><X size={18} /></button>
+            </div>
+            <div className="install-modal-actions">
+              <button type="button" className="ghost-button" onClick={() => setShowInstallModal(false)}>Cancel</button>
+              {prompt && <button type="button" className="primary-button" onClick={continueInstall}>Continue</button>}
+            </div>
+          </section>
+        </div>
       )}
 
       {showIosGuide && (

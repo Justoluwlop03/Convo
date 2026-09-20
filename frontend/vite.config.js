@@ -8,6 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      // Enable the service worker on localhost too, so the install flow can
+      // be tested with `npm run dev` rather than only after deployment.
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       includeAssets: ['icons/convo-icon.svg'],
       manifest: {
         name: 'Convo',

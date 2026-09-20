@@ -140,6 +140,13 @@ body {
 .ios-install-sheet ol { display: grid; gap: 0.7rem; margin: 1.1rem 0 0; padding-left: 1.25rem; }
 .ios-install-sheet li { display: flex; align-items: center; gap: 0.35rem; }
 
+.install-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
+
 a {
   color: inherit;
   text-decoration: none;
