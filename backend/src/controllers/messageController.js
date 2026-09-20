@@ -110,7 +110,8 @@ export async function deleteMessage(req, res) {
   const message = await Message.findOne({ _id: req.params.id, sender: req.user._id, deletedAt: null })
   if (!message) throw httpError(404, 'Message not found')
   const chat = await memberChat(message.chat, req.user._id)
-  message.text = ''
+  // Keep the required schema field valid while messageView hides the original content.
+  message.text = 'This message was deleted'
   message.deletedAt = new Date()
   await message.save()
   const populated = await message.populate(messagePopulate)

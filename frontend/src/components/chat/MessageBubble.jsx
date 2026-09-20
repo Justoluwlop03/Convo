@@ -6,6 +6,8 @@ export default function MessageBubble({ message, isOwn, onReply, onEdit, onDelet
     const [editing, setEditing] = useState(false)
     const [draft, setDraft] = useState(message.text)
     const [busy, setBusy] = useState(false)
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [deleteError, setDeleteError] = useState('')
     const statusIcon = message.status === 'pending' || message.status === 'sending'
         ? <Clock3 size={14} strokeWidth={2.5} />
         : message.status === 'failed'
@@ -27,12 +29,20 @@ export default function MessageBubble({ message, isOwn, onReply, onEdit, onDelet
     }
 
     const remove = async () => {
-        if (!window.confirm('Delete this message?')) return
         setBusy(true)
-        try { await onDelete(message.id) } finally { setBusy(false) }
+        setDeleteError('')
+        try {
+            await onDelete(message.id)
+            setShowDeleteModal(false)
+        } catch (error) {
+            setDeleteError(error.response?.data?.message || error.message || 'Unable to delete this message.')
+        } finally {
+            setBusy(false)
+        }
     }
 
     return (
+        <>
         <div className={`message-row ${isOwn ? 'own' : ''}`}>
             {!isOwn && <UserAvatar user={message.sender} className="tiny" alt={`${message.sender?.username || 'User'}'s profile`} />}
             <div className={`message-bubble-wrap ${isOwn ? 'own' : ''}`}>
@@ -58,10 +68,24 @@ export default function MessageBubble({ message, isOwn, onReply, onEdit, onDelet
                     <div className="message-actions" aria-label="Message actions">
                         <button type="button" onClick={() => onReply(message)} aria-label="Reply"><Reply size={14} /></button>
                         {isOwn && !message.deleted && <button type="button" onClick={() => setEditing(true)} aria-label="Edit message"><Pencil size={14} /></button>}
-                        {isOwn && !message.deleted && <button type="button" onClick={remove} disabled={busy} aria-label="Delete message"><Trash2 size={14} /></button>}
+                        {isOwn && !message.deleted && <button type="button" onClick={() => setShowDeleteModal(true)} disabled={busy} aria-label="Delete message"><Trash2 size={14} /></button>}
                     </div>
                 )}
             </div>
         </div>
+        {showDeleteModal && (
+            <div className="message-modal-layer" role="presentation" onClick={() => !busy && setShowDeleteModal(false)}>
+                <section className="message-modal" role="dialog" aria-modal="true" aria-labelledby={`delete-message-${message.id}`} onClick={(event) => event.stopPropagation()}>
+                    <h2 id={`delete-message-${message.id}`}>Delete message?</h2>
+                    <p>This message will be removed for everyone in the conversation.</p>
+                    {deleteError && <p className="message-modal-error">{deleteError}</p>}
+                    <div className="message-modal-actions">
+                        <button type="button" className="ghost-button" onClick={() => setShowDeleteModal(false)} disabled={busy}>Cancel</button>
+                        <button type="button" className="primary-button danger" onClick={remove} disabled={busy}>{busy ? 'Deleting...' : 'Delete'}</button>
+                    </div>
+                </section>
+            </div>
+        )}
+        </>
     )
 }
