@@ -14,6 +14,7 @@ export default function InstallConvoButton({ compact = false }) {
   const [installed, setInstalled] = useState(isStandalone)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('convo-install-dismissed') === 'true')
   const [showIosGuide, setShowIosGuide] = useState(false)
+  const [unavailableMessage, setUnavailableMessage] = useState('')
   const ios = isIosDevice()
 
   useEffect(() => {
@@ -44,7 +45,10 @@ export default function InstallConvoButton({ compact = false }) {
       setShowIosGuide(true)
       return
     }
-    if (!prompt) return
+    if (!prompt) {
+      setUnavailableMessage('Install is not ready yet. Refresh after the app finishes loading, or use Chrome, Edge, or Safari.')
+      return
+    }
     await prompt.prompt()
     const result = await prompt.userChoice
     setPrompt(null)
@@ -54,7 +58,7 @@ export default function InstallConvoButton({ compact = false }) {
     }
   }
 
-  if (installed || dismissed || (!ios && !prompt)) return null
+  if (installed || dismissed) return null
 
   return (
     <>
@@ -62,6 +66,10 @@ export default function InstallConvoButton({ compact = false }) {
         <Download size={compact ? 19 : 16} />
         {!compact && <span>Install</span>}
       </button>
+
+      {unavailableMessage && (
+        <div className="install-unavailable" role="status">{unavailableMessage}</div>
+      )}
 
       {showIosGuide && (
         <div className="ios-install-layer" role="presentation" onClick={() => setShowIosGuide(false)}>

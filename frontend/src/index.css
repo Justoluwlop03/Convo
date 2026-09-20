@@ -93,6 +93,21 @@ body {
   padding: 0 !important;
 }
 
+.install-unavailable {
+  position: fixed;
+  top: max(3.8rem, calc(env(safe-area-inset-top) + 3rem));
+  right: 0.75rem;
+  z-index: 100;
+  width: min(19rem, calc(100vw - 1.5rem));
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.97);
+  color: #e5eefb;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.28);
+  font-size: 0.78rem;
+}
+
 .ios-install-layer {
   position: fixed;
   inset: 0;
