@@ -6,7 +6,10 @@ import { httpError } from '../middleware/errorMiddleware.js'
 const chatView = chat => ({
   id: chat._id.toString(),
   participants: chat.participants.map(participant => participant.toPublicJSON()),
-  lastMessage: chat.lastMessage,
+  lastMessage: chat.lastMessage ? {
+    ...chat.lastMessage.toObject?.(),
+    text: chat.lastMessage.deletedAt ? 'Message deleted' : chat.lastMessage.text,
+  } : null,
   createdAt: chat.createdAt,
   updatedAt: chat.updatedAt,
 })

@@ -3,7 +3,7 @@ import UserAvatar from '../users/UserAvatar'
 
 export default function ChatListItem({ chat, active, onSelect }) {
     return (
-        <button type="button" className={`chat-item ${active ? 'active' : ''}`} onClick={() => onSelect(chat.id)}>
+        <button type="button" className={`chat-item ${active ? 'active' : ''} ${chat.unreadCount > 0 ? 'has-unread' : ''}`} onClick={() => onSelect(chat.id)}>
             <UserAvatar user={chat.participant} alt="" />
             <div className="chat-item-body">
                 <div className="chat-item-meta">

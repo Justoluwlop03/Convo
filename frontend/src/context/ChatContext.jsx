@@ -34,8 +34,11 @@ export function ChatProvider({ children }) {
     const refreshChats = useCallback(async () => {
         if (!user?.id) return []
         const nextChats = await chatService.getChats(user.id)
-        setChats(nextChats)
-        persistChats(nextChats)
+        setChats((current) => {
+            const merged = nextChats.map((chat) => ({ ...chat, unreadCount: current.find((item) => item.id === chat.id)?.unreadCount || 0 }))
+            persistChats(merged)
+            return merged
+        })
         setActiveChatId((current) => (!current || !nextChats.some((chat) => chat.id === current)) && nextChats[0] ? nextChats[0].id : current)
         return nextChats
     }, [persistChats, user?.id])
@@ -54,7 +57,7 @@ export function ChatProvider({ children }) {
         for (const queuedMessage of queued) {
             updateMessages(queuedMessage.chatId, (messages) => messages.map((message) => message.id === queuedMessage.id ? { ...message, status: 'sending' } : message))
             try {
-                const sent = await chatService.sendMessage(queuedMessage.chatId, queuedMessage.text, user.id)
+                const sent = await chatService.sendMessage(queuedMessage.chatId, queuedMessage.text, user.id, queuedMessage.replyTo?.id || null)
                 updateMessages(queuedMessage.chatId, (messages) => messages.map((message) => message.id === queuedMessage.id ? { ...sent, isOwn: true } : message))
                 await removeQueuedMessage(user.id, queuedMessage.id)
                 await refreshChats().catch(() => {})
@@ -88,13 +91,28 @@ export function ChatProvider({ children }) {
         socket.on('message_received', ({ message }) => {
             const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
             updateMessages(message.chatId, (messages) => messages.some((item) => item.id === normalized.id) ? messages : [...messages, normalized])
-            setChats((current) => { const next = current.map((chat) => chat.id === message.chatId ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp } : chat); persistChats(next); return next })
+            setChats((current) => {
+                const isActive = activeChatIdRef.current === message.chatId
+                const next = current.map((chat) => chat.id === message.chatId
+                    ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp, unreadCount: isActive ? 0 : (chat.unreadCount || 0) + 1 }
+                    : chat)
+                persistChats(next)
+                return next
+            })
             socket.emit('message_delivered', { messageId: message.id, chatId: message.chatId })
             if (activeChatIdRef.current === message.chatId) socket.emit('messages_read', { chatId: message.chatId })
         })
         socket.on('message_status', ({ chatId, messageId, status, deliveredAt, readAt }) => {
             messageStatusByIdRef.current[messageId] = { status, deliveredAt, readAt, read: status === 'read' }
             updateMessages(chatId, (messages) => messages.map((message) => message.id === messageId ? { ...message, status, deliveredAt, readAt, read: status === 'read' } : message))
+        })
+        socket.on('message_updated', ({ message }) => {
+            const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
+            updateMessages(message.chatId, (messages) => messages.map((item) => item.id === normalized.id ? normalized : item))
+        })
+        socket.on('message_deleted', ({ message }) => {
+            const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
+            updateMessages(message.chatId, (messages) => messages.map((item) => item.id === normalized.id ? normalized : item))
         })
         socket.on('messages_read', ({ chatId, messageIds, readAt }) => {
             const ids = new Set(messageIds)
@@ -122,7 +140,14 @@ export function ChatProvider({ children }) {
         return () => { active = false; socket?.emit('leave_chat', { chatId: activeChatId }) }
     }, [activeChatId, isOnline, updateMessages, user?.id])
 
-    const selectChat = (chatId) => setActiveChatId(chatId)
+    const selectChat = (chatId) => {
+        setActiveChatId(chatId)
+        setChats((current) => {
+            const next = current.map((chat) => chat.id === chatId ? { ...chat, unreadCount: 0 } : chat)
+            persistChats(next)
+            return next
+        })
+    }
     const startTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
     const stopTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('stop_typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
     const searchUsers = useCallback((query) => userService.searchUsers(query), [])
@@ -136,11 +161,11 @@ export function ChatProvider({ children }) {
         return nextChat
     }
 
-    const sendMessage = async (text) => {
+    const sendMessage = async (text, replyTo = null) => {
         if (!activeChatId || !text.trim() || !user?.id) return null
         const socket = socketRef.current
         if (isOnline && socket?.connected) {
-            return new Promise((resolve, reject) => socket.emit('send_message', { chatId: activeChatId, text }, (response) => {
+            return new Promise((resolve, reject) => socket.emit('send_message', { chatId: activeChatId, text, replyTo: replyTo?.id || null }, (response) => {
                 if (response?.error) return reject(new Error(response.error))
                 const message = { ...response.message, ...(messageStatusByIdRef.current[response.message.id] || {}), senderId: user.id, timestamp: new Date(response.message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: true }
                 updateMessages(activeChatId, (messages) => [...messages, message])
@@ -150,18 +175,38 @@ export function ChatProvider({ children }) {
         }
         if (isOnline) {
             try {
-                const message = await chatService.sendMessage(activeChatId, text, user.id)
+                const message = await chatService.sendMessage(activeChatId, text, user.id, replyTo?.id || null)
                 updateMessages(activeChatId, (messages) => [...messages, { ...message, isOwn: true }])
                 return message
             } catch { /* Store the unsent message below. */ }
         }
-        const pending = temporaryMessage(activeChatId, text, user)
+        const pending = { ...temporaryMessage(activeChatId, text, user), replyTo }
         updateMessages(activeChatId, (messages) => [...messages, pending])
         await queueMessage(user.id, pending).catch(() => {})
         return pending
     }
 
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, openChat, sendMessage, startTyping, stopTyping, refreshChats, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping, refreshChats])
+    const editMessage = async (messageId, text) => {
+        if (!user?.id) return null
+        const updated = await chatService.editMessage(messageId, text, user.id)
+        updateMessages(updated.chatId, (messages) => messages.map((message) => message.id === updated.id ? { ...updated, isOwn: true } : message))
+        return updated
+    }
+
+    const deleteMessage = async (messageId) => {
+        const message = activeMessages.find((item) => item.id === messageId)
+        if (!message) return
+        await chatService.deleteMessage(messageId)
+        updateMessages(message.chatId, (messages) => messages.map((item) => item.id === messageId ? { ...item, text: 'This message was deleted', deleted: true, deletedAt: new Date().toISOString() } : item))
+    }
+
+    useEffect(() => {
+        const unreadCount = chats.reduce((total, chat) => total + (chat.unreadCount || 0), 0)
+        document.title = unreadCount ? `(${unreadCount > 99 ? '99+' : unreadCount}) Convo` : 'Convo'
+        return () => { document.title = 'Convo' }
+    }, [chats])
+
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, openChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, refreshChats, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping, refreshChats])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

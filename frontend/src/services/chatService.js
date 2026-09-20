@@ -44,8 +44,17 @@ export const chatService = {
         return normalizeChat(data.chat, currentUserId)
     },
 
-    async sendMessage(chatId, text, currentUserId) {
-        const { data } = await api.post('/messages', { chatId, text })
+    async sendMessage(chatId, text, currentUserId, replyTo = null) {
+        const { data } = await api.post('/messages', { chatId, text, replyTo })
         return normalizeMessage(data.message, currentUserId)
+    },
+
+    async editMessage(messageId, text, currentUserId) {
+        const { data } = await api.patch(`/messages/${messageId}`, { text })
+        return normalizeMessage(data.message, currentUserId)
+    },
+
+    async deleteMessage(messageId) {
+        await api.delete(`/messages/${messageId}`)
     },
 }

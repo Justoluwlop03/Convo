@@ -22,6 +22,7 @@ const app = express()
 const server = http.createServer(app)
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map(origin => origin.trim())
 const io = new Server(server, { cors: { origin: allowedOrigins, credentials: true } })
+app.set('io', io)
 
 app.use(helmet())
 app.use(cors({ origin: allowedOrigins, credentials: true }))

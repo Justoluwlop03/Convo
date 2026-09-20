@@ -9,8 +9,9 @@ import UserSearch from '../components/users/UserSearch'
 import UserAvatar from '../components/users/UserAvatar'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, startTyping, stopTyping } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping } = useChat()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
+    const [replyingTo, setReplyingTo] = useState(null)
 
     useEffect(() => {
         const handlePopState = () => setIsMobileChatOpen(false)
@@ -88,13 +89,13 @@ export default function ChatPage() {
                                 <div className="empty-state wide">Start the conversation by saying hello.</div>
                             ) : (
                                 activeMessages.map((message) => (
-                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} />
+                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} />
                                 ))
                             )}
                             {typingUserId === selectedChat.participant.id && <TypingIndicator username={selectedChat.participant.username} />}
                         </div>
 
-                        <MessageComposer onSend={sendMessage} onTypingStart={startTyping} onTypingStop={stopTyping} />
+                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} />
                     </>
                 ) : (
                     <div className="empty-chat-shell">

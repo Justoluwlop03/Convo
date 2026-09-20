@@ -4,15 +4,25 @@ import Message from '../models/Message.js'
 import Chat from '../models/Chat.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 
-const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000) })
-const messageView = message => {
+const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
+const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
+
+export const messageView = message => {
   const readAt = message.readAt || (message.read ? message.updatedAt : null)
   const deliveredAt = message.deliveredAt || readAt
   return {
     id: message._id.toString(),
     chatId: message.chat._id?.toString?.() || message.chat.toString(),
     sender: message.sender.toPublicJSON(),
-    text: message.text,
+    text: message.deletedAt ? 'This message was deleted' : message.text,
+    deleted: Boolean(message.deletedAt),
+    editedAt: message.editedAt,
+    replyTo: message.replyTo ? {
+      id: message.replyTo._id?.toString?.() || message.replyTo.toString(),
+      text: message.replyTo.deletedAt ? 'This message was deleted' : message.replyTo.text,
+      deleted: Boolean(message.replyTo.deletedAt),
+      sender: message.replyTo.sender?.toPublicJSON?.() || null,
+    } : null,
     read: Boolean(readAt),
     deliveredAt,
     readAt,
@@ -20,6 +30,18 @@ const messageView = message => {
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
   }
+}
+
+const messagePopulate = [
+  { path: 'sender', select: '-passwordHash' },
+  { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } },
+]
+
+function emitToMembers(req, chat, event, payload) {
+  const io = req.app.get('io')
+  chat.participants
+    .filter(participant => participant.toString() !== req.user._id.toString())
+    .forEach(participant => io?.to(`user:${participant.toString()}`).emit(event, payload))
 }
 
 async function memberChat(chatId, userId) {
@@ -34,7 +56,7 @@ export async function getMessages(req, res) {
   const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1)
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 30, 1), 100)
   const [messages, total] = await Promise.all([
-    Message.find({ chat: chat._id }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate('sender', '-passwordHash'),
+    Message.find({ chat: chat._id }).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).populate(messagePopulate),
     Message.countDocuments({ chat: chat._id }),
   ])
   res.json({ messages: messages.reverse().map(messageView), page, limit, total, pages: Math.ceil(total / limit) })
@@ -44,10 +66,33 @@ export async function createMessage(req, res) {
   const input = messageInput.safeParse(req.body)
   if (!input.success) throw httpError(400, input.error.issues[0].message)
   const chat = await memberChat(input.data.chatId, req.user._id)
-  const message = await Message.create({ chat: chat._id, sender: req.user._id, text: input.data.text })
+  let replyTo = null
+  if (input.data.replyTo) {
+    if (!mongoose.isValidObjectId(input.data.replyTo)) throw httpError(400, 'Invalid reply message')
+    replyTo = await Message.findOne({ _id: input.data.replyTo, chat: chat._id })
+    if (!replyTo) throw httpError(404, 'Reply message not found')
+  }
+  const message = await Message.create({ chat: chat._id, sender: req.user._id, text: input.data.text, replyTo: replyTo?._id || null })
   await Chat.findByIdAndUpdate(chat._id, { lastMessage: message._id })
-  const populated = await message.populate('sender', '-passwordHash')
-  res.status(201).json({ message: messageView(populated) })
+  const populated = await message.populate(messagePopulate)
+  const view = messageView(populated)
+  emitToMembers(req, chat, 'message_received', { message: view })
+  res.status(201).json({ message: view })
+}
+
+export async function editMessage(req, res) {
+  const input = editInput.safeParse(req.body)
+  if (!input.success) throw httpError(400, input.error.issues[0].message)
+  const message = await Message.findOne({ _id: req.params.id, sender: req.user._id, deletedAt: null }).populate(messagePopulate)
+  if (!message) throw httpError(404, 'Message not found')
+  message.text = input.data.text
+  message.editedAt = new Date()
+  await message.save()
+  await message.populate(messagePopulate)
+  const chat = await memberChat(message.chat, req.user._id)
+  const view = messageView(message)
+  emitToMembers(req, chat, 'message_updated', { message: view })
+  res.json({ message: view })
 }
 
 export async function markRead(req, res) {
@@ -62,8 +107,13 @@ export async function markRead(req, res) {
 }
 
 export async function deleteMessage(req, res) {
-  const message = await Message.findOne({ _id: req.params.id, sender: req.user._id })
+  const message = await Message.findOne({ _id: req.params.id, sender: req.user._id, deletedAt: null })
   if (!message) throw httpError(404, 'Message not found')
-  await message.deleteOne()
+  const chat = await memberChat(message.chat, req.user._id)
+  message.text = ''
+  message.deletedAt = new Date()
+  await message.save()
+  const populated = await message.populate(messagePopulate)
+  emitToMembers(req, chat, 'message_deleted', { message: messageView(populated) })
   res.status(204).end()
 }

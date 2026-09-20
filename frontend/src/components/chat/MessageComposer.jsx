@@ -1,7 +1,7 @@
-import { SendHorizontal } from 'lucide-react'
+import { SendHorizontal, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-export default function MessageComposer({ onSend, onTypingStart, onTypingStop }) {
+export default function MessageComposer({ onSend, onTypingStart, onTypingStop, replyTo, onCancelReply }) {
     const [value, setValue] = useState('')
     const typingTimeoutRef = useRef(null)
     const isTypingRef = useRef(false)
@@ -37,7 +37,7 @@ export default function MessageComposer({ onSend, onTypingStart, onTypingStop })
         event.preventDefault()
         const trimmed = value.trim()
         if (!trimmed) return
-        onSend(trimmed)
+        onSend(trimmed, replyTo)
         clearTimeout(typingTimeoutRef.current)
         stopTyping()
         setValue('')
@@ -45,6 +45,7 @@ export default function MessageComposer({ onSend, onTypingStart, onTypingStop })
 
     return (
         <form className="composer" onSubmit={handleSubmit}>
+            {replyTo && <div className="composer-reply"><div><strong>Replying to {replyTo.sender?.username || 'message'}</strong><span>{replyTo.text}</span></div><button type="button" onClick={onCancelReply} aria-label="Cancel reply"><X size={15} /></button></div>}
             <textarea
                 value={value}
                 onChange={handleChange}

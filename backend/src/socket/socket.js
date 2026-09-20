@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 import Chat from '../models/Chat.js'
 import Message from '../models/Message.js'
 import User from '../models/User.js'
+import { messageView } from '../controllers/messageController.js'
 
 const onlineSockets = new Map()
 const roomFor = chatId => `chat:${chatId}`
@@ -48,27 +49,25 @@ export function configureSocket(io) {
       socket.leave(roomFor(chatId))
     })
 
-    socket.on('send_message', async ({ chatId, text } = {}, acknowledge) => {
+    socket.on('send_message', async ({ chatId, text, replyTo } = {}, acknowledge) => {
       try {
         const cleanText = String(text || '').trim()
         const chat = mongoose.isValidObjectId(chatId) ? await Chat.findById(chatId) : null
         if (!isMember(chat, userId)) throw new Error('Chat access denied')
         if (!cleanText || cleanText.length > 5000) throw new Error('Message text is invalid')
-        const message = await Message.create({ chat: chat._id, sender: userId, text: cleanText })
-        await Chat.findByIdAndUpdate(chat._id, { lastMessage: message._id, updatedAt: new Date() })
-        const populated = await message.populate('sender', '-passwordHash')
-        const payload = {
-          id: populated._id.toString(),
-          chatId: chat._id.toString(),
-          sender: populated.sender.toPublicJSON(),
-          text: populated.text,
-          read: false,
-          deliveredAt: null,
-          readAt: null,
-          status: 'sent',
-          createdAt: populated.createdAt,
-          updatedAt: populated.updatedAt,
+        let replyMessage = null
+        if (replyTo) {
+          if (!mongoose.isValidObjectId(replyTo)) throw new Error('Invalid reply message')
+          replyMessage = await Message.findOne({ _id: replyTo, chat: chat._id })
+          if (!replyMessage) throw new Error('Reply message not found')
         }
+        const message = await Message.create({ chat: chat._id, sender: userId, text: cleanText, replyTo: replyMessage?._id || null })
+        await Chat.findByIdAndUpdate(chat._id, { lastMessage: message._id, updatedAt: new Date() })
+        const populated = await message.populate([
+          { path: 'sender', select: '-passwordHash' },
+          { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } },
+        ])
+        const payload = messageView(populated)
         const recipientId = chat.participants.find(participant => participant.toString() !== userId)?.toString()
         if (recipientId) io.to(userRoomFor(recipientId)).emit('message_received', { message: payload })
         acknowledge?.({ ok: true, message: payload })

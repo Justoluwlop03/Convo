@@ -809,6 +809,12 @@ button {
   font-size: 0.7rem;
 }
 
+.chat-item.has-unread .chat-item-meta strong,
+.chat-item.has-unread .chat-item-row p {
+  color: #f8fbff;
+  font-weight: 700;
+}
+
 .online-dot {
   color: #34d399;
   margin-left: -0.15rem;
@@ -912,6 +918,14 @@ button {
   justify-content: flex-end;
 }
 
+.message-bubble-wrap {
+  position: relative;
+  min-width: 0;
+  max-width: min(70%, 440px);
+}
+
+.message-bubble-wrap .message-bubble { max-width: 100%; }
+
 .message-bubble {
   min-width: 0;
   max-width: min(70%, 440px);
@@ -926,6 +940,44 @@ button {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   border-radius: 18px 18px 6px 18px;
 }
+
+.message-bubble.deleted p { color: #a5b4cf; font-style: italic; }
+
+.reply-preview {
+  display: grid;
+  gap: 0.12rem;
+  margin: -0.1rem -0.15rem 0.55rem;
+  padding: 0.35rem 0.5rem;
+  border-left: 2px solid rgba(125, 211, 252, 0.85);
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.18);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.72rem;
+}
+
+.reply-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.message-actions { display: flex; justify-content: flex-end; gap: 0.2rem; padding: 0.2rem 0.1rem 0; }
+
+.message-actions button,
+.message-edit-form button,
+.composer-reply button {
+  display: inline-grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 0;
+  border-radius: 0.5rem;
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+}
+
+.message-actions button:hover,
+.message-edit-form button:hover,
+.composer-reply button:hover { background: rgba(59, 130, 246, 0.24); color: #fff; }
+.message-edit-form { display: grid; gap: 0.45rem; }
+.message-edit-form textarea { width: 100%; resize: vertical; border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 0.5rem; padding: 0.4rem; background: rgba(15, 23, 42, 0.25); color: inherit; }
+.message-edit-form > div { display: flex; justify-content: flex-end; gap: 0.25rem; }
 
 .message-bubble p {
   margin: 0;
@@ -958,6 +1010,22 @@ button {
 .message-status.read {
   color: #7dd3fc;
 }
+
+.composer-reply {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border-left: 2px solid #60a5fa;
+  border-radius: 0.4rem;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.composer-reply > div { display: grid; min-width: 0; gap: 0.1rem; }
+.composer-reply strong { color: #bfdbfe; font-size: 0.75rem; }
+.composer-reply span { overflow: hidden; color: #cbd5e1; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
 
 .typing-indicator {
   display: inline-flex;
@@ -2000,8 +2068,81 @@ button {
     background: rgba(59, 130, 246, 0.12);
   }
 
-  .app-shell.theme-light .search-page-card {
-    background: #ffffff;
-    border-color: rgba(37, 99, 235, 0.14);
+.app-shell.theme-light .search-page-card {
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.14);
+}
+
+/* Reply context sits above the existing message input without changing its layout. */
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.composer-reply { grid-column: 1 / -1; }
+
+@media (max-width: 980px) {
+  .message-bubble-wrap { max-width: 78%; }
+}
+
+@media (max-width: 640px) {
+  .message-bubble-wrap { max-width: 84%; }
+}
+
+/* Keep phone layouts inside the viewport even with long conversation content. */
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
+
+  .app-shell,
+  .main-panel,
+  .chat-layout,
+  .mobile-chat-list,
+  .chat-list,
+  .chat-panel,
+  .message-list,
+  .chat-header {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .mobile-chat-list {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .mobile-chat-list-header,
+  .chat-item,
+  .chat-item-meta,
+  .chat-item-row {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .chat-item {
+    overflow: hidden;
+  }
+
+  .chat-item-body { min-width: 0; }
+
+  .chat-item-meta strong,
+  .chat-item-row p {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-item-row p { flex: 1 1 auto; }
+}
 }
