@@ -2,10 +2,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-const authSchema = z.object({
-    username: z.string().min(2, 'Username must be at least 2 characters').optional(),
+const loginSchema = z.object({
     email: z.string().email('Enter a valid email'),
     password: z.string().min(6, 'Password must be at least 6 characters'),
+})
+
+const registerSchema = loginSchema.extend({
+    username: z.string().min(2, 'Username must be at least 2 characters'),
 })
 
 export default function AuthForm({ type, onSubmit, submitLabel, isSubmitting, submitError }) {
@@ -14,9 +17,9 @@ export default function AuthForm({ type, onSubmit, submitLabel, isSubmitting, su
         handleSubmit,
         formState: { errors },
     } = useForm({
-        resolver: zodResolver(authSchema),
+        resolver: zodResolver(type === 'register' ? registerSchema : loginSchema),
         defaultValues: {
-            username: '',
+            ...(type === 'register' ? { username: '' } : {}),
             email: '',
             password: '',
         },

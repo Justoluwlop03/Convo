@@ -5,7 +5,12 @@ import { generateToken } from '../utils/generateToken.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { deleteAvatar, uploadAvatar } from '../config/cloudinary.js'
 
-const credentials = z.object({ email: z.string().email(), password: z.string().min(6) })
+const credentials = z.object({
+  // Mongoose normalizes stored addresses to lowercase. Normalize the login
+  // input too, so an address entered with capital letters still matches.
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(6),
+})
 const registration = credentials.extend({ username: z.string().trim().min(2).max(30) })
 const profileUpdate = z.object({
   username: z.string().trim().min(2).max(30).optional(),
