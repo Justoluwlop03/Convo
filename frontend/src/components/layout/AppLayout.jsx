@@ -4,6 +4,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import MobileSidebar from './MobileSidebar'
 import UserAvatar from '../users/UserAvatar'
+import InstallConvoButton from '../pwa/InstallConvoButton'
 
 export default function AppLayout() {
     const { user, logout } = useAuth()
@@ -71,6 +72,7 @@ export default function AppLayout() {
                         <h1>Conversations</h1>
                     </div>
                     <div className="topbar-actions">
+                        <InstallConvoButton />
                         <button
                             type="button"
                             className="icon-button muted"
@@ -92,6 +94,7 @@ export default function AppLayout() {
                         <span>CONVO</span>
                     </div>
                     <div className="mobile-app-actions">
+                        <InstallConvoButton compact />
                         <button type="button" className="icon-button" aria-label="Find people" onClick={() => navigate('/search')}>
                             <Search size={19} />
                         </button>
