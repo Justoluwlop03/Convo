@@ -1266,6 +1266,24 @@ button {
   min-width: 0;
 }
 
+.social-profile-card { position: relative; overflow: hidden; }
+.profile-cover { height: 5rem; margin: -1.5rem -1.5rem 0; background: linear-gradient(135deg, #2563eb, #38bdf8); }
+.social-profile-header { margin-top: -2.25rem; }
+.social-profile-header .profile-avatar { border: 4px solid #0f172a; background-clip: padding-box; }
+.profile-back { margin-bottom: 0.8rem; }
+.profile-content { display: grid; gap: 1.1rem; margin: 1.5rem 0; }
+.profile-content section { padding-bottom: 1rem; border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+.profile-content h3 { margin: 0; font-size: 0.85rem; color: #93c5fd; }
+.profile-content p { margin: 0.4rem 0 0; color: #cbd5e1; overflow-wrap: anywhere; }
+.profile-about { white-space: pre-wrap; }
+.profile-edit-form { display: grid; gap: 1rem; margin: 1.5rem 0; }
+.profile-edit-form label { display: grid; gap: 0.4rem; color: #dbeafe; font-size: 0.82rem; }
+.profile-edit-form label span { display: flex; justify-content: space-between; gap: 0.5rem; }
+.profile-edit-form small { color: #94a3b8; }
+.profile-edit-form input, .profile-edit-form textarea { width: 100%; border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 10px; padding: 0.75rem; background: rgba(15, 23, 42, 0.8); color: #edf4ff; resize: vertical; }
+.profile-link-button { border: 0; padding: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.profile-link-button:hover h2 { color: #7dd3fc; }
+
 .profile-picture-actions,
 .profile-actions {
   display: flex;

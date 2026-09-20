@@ -5,13 +5,19 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   passwordHash: { type: String, required: true, select: false },
   avatar: { type: String, default: '' },
+  bio: { type: String, default: '', trim: true, maxlength: 160 },
+  about: { type: String, default: '', trim: true, maxlength: 1000 },
   avatarPublicId: { type: String, default: '', select: false },
   isOnline: { type: Boolean, default: false },
   lastSeen: { type: Date, default: Date.now },
 }, { timestamps: true })
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {
-  return { id: this._id.toString(), username: this.username, email: this.email, avatar: this.avatar, online: this.isOnline, lastSeen: this.lastSeen }
+  return { id: this._id.toString(), username: this.username, email: this.email, avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen }
+}
+
+userSchema.methods.toProfileJSON = function toProfileJSON() {
+  return { id: this._id.toString(), username: this.username, avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen, createdAt: this.createdAt }
 }
 
 export default mongoose.model('User', userSchema)

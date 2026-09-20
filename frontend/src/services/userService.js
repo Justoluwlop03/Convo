@@ -12,4 +12,9 @@ export const userService = {
         const { data } = await api.get('/users/search', { params: { q } })
         return data.users
     },
+
+    async getUser(userId) {
+        const { data } = await api.get(`/users/${userId}`)
+        return data.user
+    },
 }

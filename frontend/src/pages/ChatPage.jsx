@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Video, MoreHorizontal, PhoneCall, Plus } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
 import ChatList from '../components/chat/ChatList'
@@ -12,6 +13,7 @@ export default function ChatPage() {
     const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping } = useChat()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
     const [replyingTo, setReplyingTo] = useState(null)
+    const navigate = useNavigate()
 
     useEffect(() => {
         const handlePopState = () => setIsMobileChatOpen(false)
@@ -67,7 +69,7 @@ export default function ChatPage() {
                             <button type="button" className="icon-button mobile-chat-back" aria-label="Back to chats" onClick={handleMobileBack}>
                                 <ArrowLeft size={20} />
                             </button>
-                            <div className="chat-user">
+                            <button type="button" className="chat-user profile-link-button" onClick={() => navigate(`/profile/${selectedChat.participant.id}`)}>
                                 <UserAvatar user={selectedChat.participant} className="large" alt={`${conversationTitle}'s profile`} />
                                 <div>
                                     <h2>{conversationTitle}</h2>
@@ -75,7 +77,7 @@ export default function ChatPage() {
                                         {selectedChat.participant.online ? 'online' : selectedChat.participant.lastSeen || 'offline'}
                                     </span>
                                 </div>
-                            </div>
+                            </button>
 
                             <div className="chat-actions">
                                 <button type="button" className="icon-button"><PhoneCall size={16} /></button>

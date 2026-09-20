@@ -7,6 +7,11 @@ import { deleteAvatar, uploadAvatar } from '../config/cloudinary.js'
 
 const credentials = z.object({ email: z.string().email(), password: z.string().min(6) })
 const registration = credentials.extend({ username: z.string().trim().min(2).max(30) })
+const profileUpdate = z.object({
+  username: z.string().trim().min(2).max(30).optional(),
+  bio: z.string().trim().max(160).optional(),
+  about: z.string().trim().max(1000).optional(),
+})
 
 function parse(schema, data) {
   const result = schema.safeParse(data)
@@ -37,6 +42,19 @@ export async function login(req, res) {
 }
 
 export async function me(req, res) {
+  res.json({ user: req.user.toPublicJSON() })
+}
+
+export async function updateProfile(req, res) {
+  const input = parse(profileUpdate, req.body)
+  if (input.username && input.username !== req.user.username) {
+    const usernameExists = await User.exists({ username: input.username, _id: { $ne: req.user._id } })
+    if (usernameExists) throw httpError(409, 'Username is already taken')
+    req.user.username = input.username
+  }
+  if (input.bio !== undefined) req.user.bio = input.bio
+  if (input.about !== undefined) req.user.about = input.about
+  await req.user.save()
   res.json({ user: req.user.toPublicJSON() })
 }
 

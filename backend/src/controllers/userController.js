@@ -11,7 +11,7 @@ export async function getRecommendedUsers(req, res) {
   })
     .sort({ isOnline: -1, username: 1 })
     .limit(20)
-  res.json({ users: users.map(user => user.toPublicJSON()) })
+  res.json({ users: users.map(user => user.toProfileJSON()) })
 }
 
 export async function searchUsers(req, res) {
@@ -21,12 +21,12 @@ export async function searchUsers(req, res) {
     _id: { $ne: req.user._id },
     username: { $regex: escapeRegex(query), $options: 'i' },
   }).sort({ username: 1 }).limit(20)
-  res.json({ users: users.map(user => user.toPublicJSON()) })
+  res.json({ users: users.map(user => user.toProfileJSON()) })
 }
 
 export async function getUser(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'User not found')
   const user = await User.findById(req.params.id)
   if (!user) throw httpError(404, 'User not found')
-  res.json({ user: user.toPublicJSON() })
+  res.json({ user: user.toProfileJSON() })
 }

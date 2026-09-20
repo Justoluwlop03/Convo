@@ -34,6 +34,7 @@ function AppShell() {
           <Route index element={<ChatPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/:userId" element={<ProfilePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
