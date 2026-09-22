@@ -26,9 +26,16 @@ export async function showUnreadMessageNotification({ title, body, messageId }) 
 
   try {
     const registration = await navigator.serviceWorker?.ready
-    if (registration) return registration.showNotification(title, options)
+    // A stored subscription means the service worker will receive the same
+    // event from the server. Let that single background path show the alert.
+    if (registration) {
+      if (!registration.pushManager) return registration.showNotification(title, options)
+      if (await registration.pushManager.getSubscription()) return
+      return registration.showNotification(title, options)
+    }
     new Notification(title, options)
-  } catch {
+  } catch (error) {
+    console.warn('Unable to show the local message notification', error)
     // Notifications are an enhancement; unread state and the app badge remain
     // the reliable fallback if the platform declines to display one.
   }

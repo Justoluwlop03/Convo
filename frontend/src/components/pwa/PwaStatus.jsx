@@ -23,7 +23,9 @@ export default function PwaStatus() {
 
   useEffect(() => {
     setCanEnableNotifications(isStandalone() && canRequestNotificationPermission())
-    if (isStandalone() && typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush().catch(() => {})
+    if (isStandalone() && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      subscribeToPush().catch(error => console.warn('Unable to register Web Push for this device', error))
+    }
   }, [])
 
   const enableNotifications = async () => {
@@ -31,7 +33,7 @@ export default function PwaStatus() {
     setCanEnableNotifications(false)
     if (granted) {
       syncAppBadge(unreadCount)
-      subscribeToPush().catch(() => {})
+      subscribeToPush().catch(error => console.warn('Unable to register Web Push for this device', error))
     }
   }
 

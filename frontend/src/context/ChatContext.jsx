@@ -113,7 +113,8 @@ export function ChatProvider({ children }) {
     useEffect(() => {
         if (!token || !user?.id) return undefined
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-        const socket = io(apiUrl.replace(/\/api\/?$/, ''), { auth: { token } })
+        const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '')
+        const socket = io(socketUrl, { auth: { token } })
         socketRef.current = socket
         socket.on('connect', () => {
             const chatId = activeChatIdRef.current

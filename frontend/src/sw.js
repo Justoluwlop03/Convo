@@ -18,6 +18,8 @@ self.addEventListener('push', (event) => {
   const conversationId = payload.conversationId || ''
   const notification = self.registration.showNotification(payload.title || 'New message in Convo', {
     body: payload.showPreview === false ? 'You have a new message' : (payload.body || 'You have a new message'),
+    icon: '/icons/convo-icon-192.png',
+    badge: '/icons/convo-icon-192.png',
     tag: payload.messageId ? `convo-message-${payload.messageId}` : undefined,
     data: { conversationId },
     renotify: false,
