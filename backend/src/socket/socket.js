@@ -1,14 +1,17 @@
 import jwt from 'jsonwebtoken'
 import mongoose from 'mongoose'
 import Chat from '../models/Chat.js'
+import Group from '../models/Group.js'
 import Message from '../models/Message.js'
 import User from '../models/User.js'
 import { messageView } from '../controllers/messageController.js'
 import { areFriends } from '../utils/friendships.js'
+import { unreadMessageFilter } from '../utils/unreadMessages.js'
 
 const onlineSockets = new Map()
 const roomFor = chatId => `chat:${chatId}`
 const userRoomFor = userId => `user:${userId}`
+const groupRoomFor = groupId => `group:${groupId}`
 
 function isMember(chat, userId) {
   return chat?.participants.some(participant => participant.toString() === userId.toString())
@@ -18,6 +21,10 @@ async function canUseChat(chat, userId) {
   if (!isMember(chat, userId)) return false
   const otherUserId = chat.participants.find(participant => participant.toString() !== userId.toString())
   return Boolean(otherUserId && await areFriends(userId, otherUserId))
+}
+
+async function canUseGroup(groupId, userId) {
+  return mongoose.isValidObjectId(groupId) && Boolean(await Group.exists({ _id: groupId, members: userId }))
 }
 
 export function configureSocket(io) {
@@ -51,9 +58,20 @@ export function configureSocket(io) {
       acknowledge?.({ ok: true })
     })
 
+    socket.on('join_group', async ({ groupId } = {}, acknowledge) => {
+      if (!(await canUseGroup(groupId, userId))) return acknowledge?.({ error: 'Group access denied' })
+      socket.join(groupRoomFor(groupId))
+      acknowledge?.({ ok: true })
+    })
+
     socket.on('leave_chat', ({ chatId } = {}) => {
       socket.to(roomFor(chatId)).emit('typing_stopped', { userId, chatId })
       socket.leave(roomFor(chatId))
+    })
+
+    socket.on('leave_group', ({ groupId } = {}) => {
+      socket.to(groupRoomFor(groupId)).emit('group_typing_stopped', { userId, groupId })
+      socket.leave(groupRoomFor(groupId))
     })
 
     socket.on('send_message', async ({ chatId, text, replyTo } = {}, acknowledge) => {
@@ -92,6 +110,12 @@ export function configureSocket(io) {
       const chat = mongoose.isValidObjectId(chatId) ? await Chat.findById(chatId) : null
       if (await canUseChat(chat, userId)) socket.to(roomFor(chatId)).emit('typing_stopped', { userId, chatId })
     })
+    socket.on('group_typing', async ({ groupId } = {}) => {
+      if (await canUseGroup(groupId, userId)) socket.to(groupRoomFor(groupId)).emit('group_typing_started', { userId, groupId })
+    })
+    socket.on('group_stop_typing', async ({ groupId } = {}) => {
+      if (await canUseGroup(groupId, userId)) socket.to(groupRoomFor(groupId)).emit('group_typing_stopped', { userId, groupId })
+    })
 
     socket.on('message_delivered', async ({ messageId, chatId } = {}) => {
       if (!mongoose.isValidObjectId(messageId) || !mongoose.isValidObjectId(chatId)) return
@@ -115,18 +139,21 @@ export function configureSocket(io) {
     socket.on('messages_read', async ({ chatId } = {}) => {
       if (!mongoose.isValidObjectId(chatId)) return
       const chat = await Chat.findOne({ _id: chatId, participants: userId })
-      if (!chat) return
-      const messages = await Message.find({ chat: chat._id, sender: { $ne: userId }, readAt: null }).select('_id')
+      const group = chat ? null : await Group.findOne({ _id: chatId, members: userId })
+      if (!chat && !group) return
+      const conversation = chat ? { chat: chat._id } : { group: group._id }
+      const messages = await Message.find(unreadMessageFilter(userId, conversation)).select('_id sender')
       if (!messages.length) return
       const readAt = new Date()
       const messageIds = messages.map(message => message._id)
-      await Message.updateMany({ _id: { $in: messageIds } }, { $set: { read: true, deliveredAt: readAt, readAt } })
-      const senderId = chat.participants.find(participant => participant.toString() !== userId)?.toString()
-      if (senderId) io.to(userRoomFor(senderId)).emit('messages_read', {
-        chatId: chat._id.toString(),
+      await Message.updateMany({ _id: { $in: messageIds } }, { $set: { read: true, deliveredAt: readAt, readAt }, $addToSet: { readBy: userId } })
+      io.to(userRoomFor(userId)).emit('conversation_read', { chatId: chatId.toString() })
+      const senderIds = [...new Set(messages.map(message => message.sender.toString()))]
+      senderIds.forEach(senderId => io.to(userRoomFor(senderId)).emit('messages_read', {
+        chatId: chatId.toString(),
         messageIds: messageIds.map(id => id.toString()),
         readAt,
-      })
+      }))
     })
 
     socket.on('disconnect', async () => {

@@ -10,6 +10,10 @@ function formatTime(value) {
 }
 
 function normalizeChat(chat, currentUserId) {
+    if (chat.type === 'group') return {
+        id: chat.id, type: 'group', name: chat.name, avatar: chat.avatar, members: chat.members || [], admins: chat.admins || [], creator: chat.creator,
+        memberCount: chat.memberCount || chat.members?.length || 0, lastMessage: chat.lastMessage?.text || 'Group created', updatedAt: formatTime(chat.updatedAt), unreadCount: Number(chat.unreadCount) || 0,
+    }
     return {
         id: chat.id,
         participant: participantFor(chat, currentUserId),
@@ -30,8 +34,8 @@ function normalizeMessage(message, currentUserId) {
 
 export const chatService = {
     async getChats(currentUserId) {
-        const { data } = await api.get('/chats')
-        return data.chats.map((chat) => normalizeChat(chat, currentUserId))
+        const [chatsResult, groupsResult] = await Promise.all([api.get('/chats'), api.get('/groups')])
+        return [...chatsResult.data.chats, ...groupsResult.data.groups].map((chat) => normalizeChat(chat, currentUserId)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
     },
 
     async getMessages(chatId, currentUserId) {
@@ -48,6 +52,13 @@ export const chatService = {
         const { data } = await api.post('/messages', { chatId, text, replyTo })
         return normalizeMessage(data.message, currentUserId)
     },
+
+    async getGroupMessages(groupId, currentUserId) { const { data } = await api.get(`/groups/${groupId}/messages`); return data.messages.map((message) => normalizeMessage(message, currentUserId)) },
+    async createGroup({ name, memberIds, avatar }, currentUserId) { const form = new FormData(); form.append('name', name); form.append('memberIds', JSON.stringify(memberIds)); if (avatar) form.append('avatar', avatar); const { data } = await api.post('/groups', form); return normalizeChat(data.group, currentUserId) },
+    async updateGroup(groupId, payload, currentUserId) { const form = new FormData(); if (payload.name) form.append('name', payload.name); if (payload.avatar) form.append('avatar', payload.avatar); const { data } = await api.patch(`/groups/${groupId}`, form); return normalizeChat(data.group, currentUserId) },
+    async addGroupMembers(groupId, memberIds, currentUserId) { const { data } = await api.post(`/groups/${groupId}/members`, { memberIds }); return normalizeChat(data.group, currentUserId) },
+    async leaveGroup(groupId) { await api.post(`/groups/${groupId}/leave`) },
+    async sendGroupMessage(groupId, text, currentUserId) { const { data } = await api.post(`/groups/${groupId}/messages`, { text }); return normalizeMessage(data.message, currentUserId) },
 
     async editMessage(messageId, text, currentUserId) {
         const { data } = await api.patch(`/messages/${messageId}`, { text })

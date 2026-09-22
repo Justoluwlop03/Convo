@@ -5,6 +5,7 @@ import { chatService } from '../services/chatService'
 import { userService } from '../services/userService'
 import { getQueuedMessages, loadConversations, loadMessages, queueMessage, removeQueuedMessage, saveConversations, saveMessages } from '../services/offline/database'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
+import { syncAppBadge } from '../services/appBadge'
 
 const ChatContext = createContext(null)
 
@@ -37,7 +38,7 @@ export function ChatProvider({ children }) {
         setChats((current) => {
             const merged = nextChats.map((chat) => ({
                 ...chat,
-                unreadCount: Math.max(chat.unreadCount || 0, current.find((item) => item.id === chat.id)?.unreadCount || 0),
+                unreadCount: chat.unreadCount || 0,
             }))
             persistChats(merged)
             return merged
@@ -88,7 +89,7 @@ export function ChatProvider({ children }) {
         socketRef.current = socket
         socket.on('connect', () => {
             const chatId = activeChatIdRef.current
-            if (chatId) { socket.emit('join_chat', { chatId }); socket.emit('messages_read', { chatId }) }
+            if (chatId) { socket.emit(chats.find(chat => chat.id === chatId)?.type === 'group' ? 'join_group' : 'join_chat', chats.find(chat => chat.id === chatId)?.type === 'group' ? { groupId: chatId } : { chatId }); socket.emit('messages_read', { chatId }) }
             flushOutbox().catch(() => {})
         })
         socket.on('message_received', ({ message }) => {
@@ -105,6 +106,16 @@ export function ChatProvider({ children }) {
             socket.emit('message_delivered', { messageId: message.id, chatId: message.chatId })
             if (activeChatIdRef.current === message.chatId) socket.emit('messages_read', { chatId: message.chatId })
         })
+        socket.on('group_message_received', ({ message }) => {
+            const chatId = message.groupId
+            const normalized = { ...message, chatId, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: false }
+            updateMessages(chatId, messages => messages.some(item => item.id === normalized.id) ? messages : [...messages, normalized])
+            setChats(current => { const active = activeChatIdRef.current === chatId; const next = current.map(chat => chat.id === chatId ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp, unreadCount: active ? 0 : (chat.unreadCount || 0) + 1 } : chat); persistChats(next); return next })
+            if (activeChatIdRef.current === chatId) socket.emit('messages_read', { chatId })
+        })
+        socket.on('group_added', ({ group }) => { const normalized = { ...group, type: 'group', memberCount: group.memberCount || group.members?.length || 0, lastMessage: group.lastMessage?.text || 'Group created', updatedAt: new Date(group.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; setChats(current => { const next = [normalized, ...current.filter(chat => chat.id !== normalized.id)]; persistChats(next); return next }) })
+        socket.on('group_updated', ({ group }) => { if (!group) return; const normalized = { ...group, type: 'group', memberCount: group.memberCount || group.members?.length || 0, lastMessage: group.lastMessage?.text || 'Group created', updatedAt: new Date(group.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; setChats(current => { const next = current.map(chat => chat.id === normalized.id ? { ...chat, ...normalized } : chat); persistChats(next); return next }) })
+        socket.on('group_removed', ({ groupId }) => setChats(current => current.filter(chat => chat.id !== groupId)))
         socket.on('message_status', ({ chatId, messageId, status, deliveredAt, readAt }) => {
             messageStatusByIdRef.current[messageId] = { status, deliveredAt, readAt, read: status === 'read' }
             updateMessages(chatId, (messages) => messages.map((message) => message.id === messageId ? { ...message, status, deliveredAt, readAt, read: status === 'read' } : message))
@@ -122,12 +133,25 @@ export function ChatProvider({ children }) {
             messageIds.forEach((messageId) => { messageStatusByIdRef.current[messageId] = { status: 'read', read: true, readAt } })
             updateMessages(chatId, (messages) => messages.map((message) => ids.has(message.id) ? { ...message, status: 'read', read: true, readAt } : message))
         })
+        socket.on('conversation_read', ({ chatId }) => {
+            setChats((current) => {
+                const next = current.map((chat) => chat.id === chatId ? { ...chat, unreadCount: 0 } : chat)
+                persistChats(next)
+                return next
+            })
+        })
         socket.on('typing_started', ({ userId, chatId }) => {
             if (!chatId || userId === user.id) return
             clearTimeout(typingTimeoutsRef.current[chatId]); setTypingUsersByChat((current) => ({ ...current, [chatId]: userId }))
             typingTimeoutsRef.current[chatId] = setTimeout(() => setTypingUsersByChat((current) => ({ ...current, [chatId]: null })), 3500)
         })
         socket.on('typing_stopped', ({ userId, chatId }) => { clearTimeout(typingTimeoutsRef.current[chatId]); setTypingUsersByChat((current) => current[chatId] === userId ? { ...current, [chatId]: null } : current) })
+        socket.on('group_typing_started', ({ userId, groupId }) => {
+            if (userId === user.id) return
+            clearTimeout(typingTimeoutsRef.current[groupId]); setTypingUsersByChat(current => ({ ...current, [groupId]: userId }))
+            typingTimeoutsRef.current[groupId] = setTimeout(() => setTypingUsersByChat(current => ({ ...current, [groupId]: null })), 3500)
+        })
+        socket.on('group_typing_stopped', ({ userId, groupId }) => { clearTimeout(typingTimeoutsRef.current[groupId]); setTypingUsersByChat(current => current[groupId] === userId ? { ...current, [groupId]: null } : current) })
         return () => { Object.values(typingTimeoutsRef.current).forEach(clearTimeout); typingTimeoutsRef.current = {}; socket.disconnect(); socketRef.current = null }
     }, [flushOutbox, persistChats, token, updateMessages, user?.id])
 
@@ -137,11 +161,12 @@ export function ChatProvider({ children }) {
         if (!activeChatId || !user?.id) return undefined
         let active = true
         loadMessages(user.id, activeChatId).then((cached) => { if (active && cached.length) setMessagesByChat((current) => ({ ...current, [activeChatId]: cached })) }).catch(() => {})
-        if (isOnline) chatService.getMessages(activeChatId, user.id).then((messages) => { if (active) { updateMessages(activeChatId, () => messages); socketRef.current?.emit('messages_read', { chatId: activeChatId }) } }).catch(() => {})
+        const activeChat = chats.find(chat => chat.id === activeChatId)
+        if (isOnline) (activeChat?.type === 'group' ? chatService.getGroupMessages(activeChatId, user.id) : chatService.getMessages(activeChatId, user.id)).then((messages) => { if (active) { updateMessages(activeChatId, () => messages); socketRef.current?.emit('messages_read', { chatId: activeChatId }) } }).catch(() => {})
         const socket = socketRef.current
-        socket?.emit('join_chat', { chatId: activeChatId })
-        return () => { active = false; socket?.emit('leave_chat', { chatId: activeChatId }) }
-    }, [activeChatId, isOnline, updateMessages, user?.id])
+        socket?.emit(activeChat?.type === 'group' ? 'join_group' : 'join_chat', activeChat?.type === 'group' ? { groupId: activeChatId } : { chatId: activeChatId })
+        return () => { active = false; socket?.emit(activeChat?.type === 'group' ? 'leave_group' : 'leave_chat', activeChat?.type === 'group' ? { groupId: activeChatId } : { chatId: activeChatId }) }
+    }, [activeChatId, chats, isOnline, updateMessages, user?.id])
 
     const selectChat = (chatId) => {
         setActiveChatId(chatId)
@@ -151,8 +176,8 @@ export function ChatProvider({ children }) {
             return next
         })
     }
-    const startTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
-    const stopTyping = useCallback(() => { if (activeChatId && isOnline) socketRef.current?.emit('stop_typing', { chatId: activeChatId }) }, [activeChatId, isOnline])
+    const startTyping = useCallback(() => { const group = selectedChat?.type === 'group'; if (activeChatId && isOnline) socketRef.current?.emit(group ? 'group_typing' : 'typing', group ? { groupId: activeChatId } : { chatId: activeChatId }) }, [activeChatId, isOnline, selectedChat?.type])
+    const stopTyping = useCallback(() => { const group = selectedChat?.type === 'group'; if (activeChatId && isOnline) socketRef.current?.emit(group ? 'group_stop_typing' : 'stop_typing', group ? { groupId: activeChatId } : { chatId: activeChatId }) }, [activeChatId, isOnline, selectedChat?.type])
     const searchUsers = useCallback((query) => userService.searchUsers(query), [])
 
     const openChat = async (otherUser) => {
@@ -167,6 +192,13 @@ export function ChatProvider({ children }) {
     const sendMessage = async (text, replyTo = null) => {
         if (!activeChatId || !text.trim() || !user?.id) return null
         const socket = socketRef.current
+        if (selectedChat?.type === 'group') {
+            const message = await chatService.sendGroupMessage(activeChatId, text, user.id)
+            const normalized = { ...message, isOwn: true }
+            updateMessages(activeChatId, messages => [...messages, normalized])
+            setChats(current => current.map(chat => chat.id === activeChatId ? { ...chat, lastMessage: normalized.text, updatedAt: normalized.timestamp } : chat))
+            return normalized
+        }
         if (isOnline && socket?.connected) {
             return new Promise((resolve, reject) => socket.emit('send_message', { chatId: activeChatId, text, replyTo: replyTo?.id || null }, (response) => {
                 if (response?.error) return reject(new Error(response.error))
@@ -206,10 +238,12 @@ export function ChatProvider({ children }) {
     useEffect(() => {
         const unreadCount = chats.reduce((total, chat) => total + (chat.unreadCount || 0), 0)
         document.title = unreadCount ? `(${unreadCount > 99 ? '99+' : unreadCount}) Convo` : 'Convo'
+        syncAppBadge(unreadCount)
         return () => { document.title = 'Convo' }
     }, [chats])
 
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, openChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, refreshChats, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping, refreshChats])
+    const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, openChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, refreshChats, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, typingUsersByChat, searchResults, searchUsers, startTyping, stopTyping, refreshChats])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

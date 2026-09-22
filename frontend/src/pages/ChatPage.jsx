@@ -8,11 +8,15 @@ import MessageComposer from '../components/chat/MessageComposer'
 import TypingIndicator from '../components/chat/TypingIndicator'
 import UserSearch from '../components/users/UserSearch'
 import UserAvatar from '../components/users/UserAvatar'
+import CreateGroupModal from '../components/chat/CreateGroupModal'
+import GroupInfoModal from '../components/chat/GroupInfoModal'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
     const [replyingTo, setReplyingTo] = useState(null)
+    const [creatingGroup, setCreatingGroup] = useState(false)
+    const [showGroupInfo, setShowGroupInfo] = useState(false)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -21,7 +25,7 @@ export default function ChatPage() {
         return () => window.removeEventListener('popstate', handlePopState)
     }, [])
 
-    const conversationTitle = useMemo(() => selectedChat?.participant?.username || 'Select a conversation', [selectedChat])
+    const conversationTitle = useMemo(() => selectedChat?.type === 'group' ? selectedChat.name : selectedChat?.participant?.username || 'Select a conversation', [selectedChat])
 
     const handleSelectChat = (chatId) => {
         selectChat(chatId)
@@ -43,9 +47,9 @@ export default function ChatPage() {
             <section className="sidebar-panel slim">
                 <div className="sidebar-header">
                     <h3>Chats</h3>
-                    <button type="button" className="ghost-button new-chat-button" aria-label="Start a new chat">
+                    <button type="button" className="ghost-button new-chat-button" aria-label="Create a group" onClick={() => setCreatingGroup(true)}>
                         <Plus size={16} aria-hidden="true" />
-                        <span>New chat</span>
+                        <span>New group</span>
                     </button>
                 </div>
                 <ChatList chats={chats} activeChatId={activeChatId} onSelect={handleSelectChat} />
@@ -69,12 +73,12 @@ export default function ChatPage() {
                             <button type="button" className="icon-button mobile-chat-back" aria-label="Back to chats" onClick={handleMobileBack}>
                                 <ArrowLeft size={20} />
                             </button>
-                            <button type="button" className="chat-user profile-link-button" onClick={() => navigate(`/profile/${selectedChat.participant.id}`)}>
-                                <UserAvatar user={selectedChat.participant} className="large" alt={`${conversationTitle}'s profile`} />
+                            <button type="button" className="chat-user profile-link-button" onClick={() => selectedChat.type === 'group' ? setShowGroupInfo(true) : navigate(`/profile/${selectedChat.participant.id}`)}>
+                                <UserAvatar user={selectedChat.type === 'group' ? selectedChat : selectedChat.participant} className="large" alt={`${conversationTitle}'s profile`} />
                                 <div>
                                     <h2>{conversationTitle}</h2>
-                                    <span className={selectedChat.participant.online ? 'status online' : 'status'}>
-                                        {selectedChat.participant.online ? 'online' : selectedChat.participant.lastSeen || 'offline'}
+                                    <span className={selectedChat.type === 'group' ? 'status' : selectedChat.participant.online ? 'status online' : 'status'}>
+                                        {selectedChat.type === 'group' ? `${selectedChat.memberCount} members` : selectedChat.participant.online ? 'online' : selectedChat.participant.lastSeen || 'offline'}
                                     </span>
                                 </div>
                             </button>
@@ -94,7 +98,7 @@ export default function ChatPage() {
                                     <MessageBubble key={message.id} message={message} isOwn={message.isOwn} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} />
                                 ))
                             )}
-                            {typingUserId === selectedChat.participant.id && <TypingIndicator username={selectedChat.participant.username} />}
+                            {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}
                         </div>
 
                         <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} />
@@ -109,6 +113,8 @@ export default function ChatPage() {
             <aside className="right-panel">
                 <UserSearch />
             </aside>
+            {creatingGroup && <CreateGroupModal onClose={() => setCreatingGroup(false)} onCreate={createGroup} />}
+            {showGroupInfo && selectedChat?.type === 'group' && <GroupInfoModal group={selectedChat} onClose={() => setShowGroupInfo(false)} onLeft={() => selectChat(chats.find(chat => chat.id !== selectedChat.id)?.id || null)} onChanged={refreshChats} />}
         </div>
     )
 }

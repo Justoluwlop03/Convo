@@ -39,3 +39,11 @@ export function deleteAvatar(publicId) {
     requireConfiguration()
     return cloudinary.uploader.destroy(publicId, { resource_type: 'image' })
 }
+
+export function uploadGroupAvatar(buffer) {
+    requireConfiguration()
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/group-avatars', resource_type: 'image' }, (error, result) => error ? reject(error) : resolve(result))
+        stream.end(buffer)
+    })
+}

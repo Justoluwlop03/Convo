@@ -73,6 +73,11 @@ export async function listFriendRequests(req, res) {
   res.json({ requests: users.map(user => profileView(user, req.user)) })
 }
 
+export async function listFriends(req, res) {
+  const users = await User.find({ _id: { $in: req.user.friends } }).sort({ username: 1 })
+  res.json({ users: users.map(user => profileView(user, req.user)) })
+}
+
 export async function acceptFriendRequest(req, res) {
   const sender = await requestUser(req)
   await Promise.all([

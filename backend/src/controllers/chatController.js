@@ -4,6 +4,7 @@ import User from '../models/User.js'
 import Message from '../models/Message.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship, requireFriends } from '../utils/friendships.js'
+import { unreadMessageFilter } from '../utils/unreadMessages.js'
 
 const chatView = (chat, unreadCount = 0) => ({
   id: chat._id.toString(),
@@ -20,7 +21,7 @@ const chatView = (chat, unreadCount = 0) => ({
 async function unreadCountsFor(chats, userId) {
   if (!chats.length) return new Map()
   const counts = await Message.aggregate([
-    { $match: { chat: { $in: chats.map(chat => chat._id) }, sender: { $ne: userId }, read: false } },
+    { $match: unreadMessageFilter(userId, { chat: { $in: chats.map(chat => chat._id) } }) },
     { $group: { _id: '$chat', count: { $sum: 1 } } },
   ])
   return new Map(counts.map(({ _id, count }) => [_id.toString(), count]))

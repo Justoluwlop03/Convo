@@ -1,0 +1,15 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Crown, LogOut, Plus, X } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
+import { chatService } from '../../services/chatService'
+import UserAvatar from '../users/UserAvatar'
+import { userService } from '../../services/userService'
+
+export default function GroupInfoModal({ group, onClose, onLeft, onChanged }) {
+    const { user } = useAuth(); const [busy, setBusy] = useState(false); const [adding, setAdding] = useState(false); const [friends, setFriends] = useState([]); const [selected, setSelected] = useState([]); const isAdmin = group.admins?.some(admin => admin.id === user.id)
+    useEffect(() => { if (adding) userService.getFriends().then(users => setFriends(users.filter(friend => !group.members.some(member => member.id === friend.id)))) }, [adding, group.members])
+    const available = useMemo(() => friends.filter(friend => !group.members.some(member => member.id === friend.id)), [friends, group.members])
+    const leave = async () => { setBusy(true); try { await chatService.leaveGroup(group.id); onLeft(); onClose() } finally { setBusy(false) } }
+    const addMembers = async () => { if (!selected.length) return; setBusy(true); try { await chatService.addGroupMembers(group.id, selected, user.id); await onChanged?.(); setAdding(false); setSelected([]) } finally { setBusy(false) } }
+    return <div className="group-modal-layer" onClick={onClose}><section className="group-modal group-info" onClick={event => event.stopPropagation()}><div className="group-modal-heading"><div className="group-info-title"><UserAvatar user={group} className="large"/><div><h2>{group.name}</h2><p>{group.memberCount} members</p></div></div><button className="icon-button" onClick={onClose}><X size={18}/></button></div><h3>Members</h3><div className="group-members">{group.members.map(member => <div className="group-member" key={member.id}><UserAvatar user={member} alt=""/><span>{member.username}{member.id === group.creator?.id ? ' · creator' : ''}</span>{group.admins?.some(admin => admin.id === member.id) && <Crown size={15} title="Admin"/>}</div>)}</div>{isAdmin && <>{adding ? <div className="group-friends">{available.map(friend => <label className="group-friend" key={friend.id}><input type="checkbox" checked={selected.includes(friend.id)} onChange={() => setSelected(current => current.includes(friend.id) ? current.filter(id => id !== friend.id) : [...current, friend.id])}/><UserAvatar user={friend}/><span>{friend.username}</span></label>)}{!available.length && <p className="group-admin-note">All of your friends are already members.</p>}<button className="primary-button" disabled={busy || !selected.length} onClick={addMembers}>Add selected</button></div> : <button className="ghost-button" onClick={() => setAdding(true)}><Plus size={16}/> Add members</button>}</>}<div className="group-modal-actions"><button className="primary-button danger" onClick={leave} disabled={busy}><LogOut size={16}/>{busy ? 'Leaving…' : 'Leave group'}</button></div></section></div>
+}

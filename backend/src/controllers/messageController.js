@@ -4,6 +4,7 @@ import Message from '../models/Message.js'
 import Chat from '../models/Chat.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship } from '../utils/friendships.js'
+import { unreadMessageFilter } from '../utils/unreadMessages.js'
 
 const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
 const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
@@ -13,7 +14,9 @@ export const messageView = message => {
   const deliveredAt = message.deliveredAt || readAt
   return {
     id: message._id.toString(),
-    chatId: message.chat._id?.toString?.() || message.chat.toString(),
+    chatId: message.chat?._id?.toString?.() || message.chat?.toString?.() || null,
+    groupId: message.group?._id?.toString?.() || message.group?.toString?.() || null,
+    conversationType: message.group ? 'group' : 'private',
     sender: message.sender.toPublicJSON(),
     text: message.deletedAt ? 'This message was deleted' : message.text,
     deleted: Boolean(message.deletedAt),
@@ -98,9 +101,10 @@ export async function editMessage(req, res) {
 }
 
 export async function markRead(req, res) {
-  const message = await Message.findOne({ _id: req.params.id, sender: { $ne: req.user._id } })
+  const message = await Message.findOne(unreadMessageFilter(req.user._id, { _id: req.params.id }))
   if (!message) throw httpError(404, 'Message not found')
   await memberChat(message.chat, req.user._id)
+  message.readBy.addToSet(req.user._id)
   message.read = true
   message.deliveredAt ||= new Date()
   message.readAt = new Date()

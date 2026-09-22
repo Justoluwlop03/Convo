@@ -668,6 +668,13 @@ button {
   flex: 0 0 auto;
 }
 
+.group-modal-layer { position: fixed; inset: 0; z-index: 140; display: grid; place-items: center; padding: 1rem; background: rgba(2, 6, 23, .68); }
+.group-modal { width: min(100%, 31rem); max-height: min(43rem, calc(100dvh - 2rem)); overflow: auto; padding: 1.2rem; border: 1px solid rgba(148,163,184,.25); border-radius: 18px; background: #101827; color: #e5eefb; box-shadow: 0 24px 60px rgba(0,0,0,.35); }
+.group-modal-heading, .group-modal-actions, .group-info-title, .group-friend, .group-member { display: flex; align-items: center; }
+.group-modal-heading { justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }.group-modal-heading h2,.group-modal-heading p,.group-modal h3 { margin: 0; }.group-modal-heading p,.group-admin-note { color: #a5b4cf; font-size: .85rem; }.group-modal { display: grid; gap: .85rem; }
+.group-upload,.group-search { display: flex; align-items:center; gap:.55rem; padding:.65rem .75rem; border:1px solid rgba(148,163,184,.22); border-radius:10px; color:#cbd5e1; }.group-upload input { display:none; }.group-upload { cursor:pointer; }.group-search input { min-width:0; flex:1; border:0; outline:0; background:transparent; color:inherit; }
+.group-counter { color:#93c5fd; font-size:.82rem; }.group-friends,.group-members { display:grid; gap:.45rem; max-height:14rem; overflow:auto; }.group-friend,.group-member { gap:.65rem; padding:.45rem; border-radius:10px; }.group-friend:hover { background:rgba(59,130,246,.1); }.group-friend input { accent-color:#3b82f6; }.group-friend span,.group-member span { min-width:0; overflow:hidden; text-overflow:ellipsis; }.group-member svg { margin-left:auto; color:#facc15; }.group-modal-actions { justify-content:flex-end; gap:.6rem; margin-top:.25rem; }.group-info-title { gap:.75rem; }
+
 .chat-list {
   display: grid;
   gap: 0.55rem;
