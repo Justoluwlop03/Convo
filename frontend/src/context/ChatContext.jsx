@@ -6,6 +6,7 @@ import { userService } from '../services/userService'
 import { getQueuedMessages, loadConversations, loadMessages, queueMessage, removeQueuedMessage, saveConversations, saveMessages } from '../services/offline/database'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { syncAppBadge } from '../services/appBadge'
+import { showUnreadMessageNotification } from '../services/messageNotifications'
 
 const ChatContext = createContext(null)
 
@@ -117,6 +118,7 @@ export function ChatProvider({ children }) {
             })
             socket.emit('message_delivered', { messageId: message.id, chatId: message.chatId })
             if (activeChatIdRef.current === message.chatId) socket.emit('messages_read', { chatId: message.chatId })
+            else showUnreadMessageNotification({ title: message.sender?.username || 'New message in Convo', body: message.text, messageId: message.id })
         })
         socket.on('group_message_received', ({ message, group }) => {
             const chatId = message.groupId
@@ -133,6 +135,7 @@ export function ChatProvider({ children }) {
                 return next
             })
             if (activeChatIdRef.current === chatId) socket.emit('messages_read', { chatId })
+            else showUnreadMessageNotification({ title: group?.name || 'New group message', body: message.text, messageId: message.id })
         })
         socket.on('group_added', ({ group }) => { const normalized = normalizeIncomingGroup(group); setChats(current => { const next = [normalized, ...current.filter(chat => chat.id !== normalized.id)]; persistChats(next); return next }) })
         socket.on('group_updated', ({ group }) => { if (!group) return; const normalized = normalizeIncomingGroup(group); setChats(current => { const next = current.map(chat => chat.id === normalized.id ? { ...chat, ...normalized } : chat); persistChats(next); return next }) })
