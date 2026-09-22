@@ -980,7 +980,7 @@ button {
 
 .reply-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.message-actions { display: flex; justify-content: flex-end; gap: 0.2rem; padding: 0.2rem 0.1rem 0; }
+.message-actions { display: none; }
 
 .message-actions button,
 .message-edit-form button,
@@ -2172,7 +2172,22 @@ button {
 }
 
 @media (max-width: 640px) {
-  .message-bubble-wrap { max-width: 84%; }
+.message-bubble-wrap { max-width: 84%; }
+
+/* Contextual message controls keep mobile conversations uncluttered. */
+.message-bubble-wrap { position: relative; }
+.message-action-bar { position: absolute; z-index: 20; right: 0; bottom: calc(100% + .35rem); display: flex; align-items: center; gap: .22rem; padding: .22rem; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; background: #172238; box-shadow: 0 10px 24px rgba(0,0,0,.28); animation: message-action-in .14s ease-out; }
+.message-action-bar.own { right: 0; }
+.message-action-bar > button, .message-reaction-picker > button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 9px; color: #dbeafe; background: rgba(148,163,184,.14); cursor: pointer; }
+.message-action-bar > button:hover, .message-reaction-picker > button:hover { background: rgba(59,130,246,.28); }
+.message-reaction-picker, .message-more-menu { position: absolute; right: 0; bottom: calc(100% + .35rem); display: flex; gap: .2rem; padding: .3rem; border: 1px solid rgba(148,163,184,.28); border-radius: 12px; background: #172238; box-shadow: 0 10px 24px rgba(0,0,0,.28); animation: message-action-in .14s ease-out; }
+.message-reaction-picker > button { font-size: 1rem; }
+.message-more-menu { display: grid; min-width: 8rem; }
+.message-more-menu button { display: flex; align-items: center; gap: .45rem; padding: .48rem .6rem; border: 0; border-radius: 8px; color: #e5eefb; background: transparent; text-align: left; cursor: pointer; }
+.message-more-menu button:hover { background: rgba(148,163,184,.14); }.message-more-menu .danger-action { color: #fca5a5; }
+.message-reaction { position: absolute; right: .35rem; bottom: -.55rem; padding: .08rem .32rem; border: 1px solid rgba(148,163,184,.35); border-radius: 999px; background: #172238; font-size: .82rem; }
+@keyframes message-action-in { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (max-width: 480px) { .message-action-bar { max-width: calc(100vw - 2rem); } .message-reaction-picker { right: auto; left: 0; max-width: calc(100vw - 2rem); } }
 }
 
 /* Keep phone layouts inside the viewport even with long conversation content. */
@@ -2231,3 +2246,19 @@ button {
   .chat-item-row p { flex: 1 1 auto; }
 }
 }
+
+/* Convo-style floating message controls, shared by desktop and mobile. */
+.message-bubble-wrap { position: relative; }
+.message-action-bar, .message-reaction-picker, .message-more-menu { border: 1px solid rgba(96,165,250,.28); background: rgba(15,23,42,.96); box-shadow: 0 12px 30px rgba(2,6,23,.35); backdrop-filter: blur(10px); }
+.message-action-bar { position: absolute; z-index: 20; right: 0; bottom: calc(100% + .42rem); display: flex; align-items: center; gap: .25rem; padding: .24rem; border-radius: 14px; animation: message-action-in .16s ease-out; }
+.message-action-bar > button, .message-reaction-picker > button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 10px; color: #dbeafe; background: rgba(59,130,246,.12); cursor: pointer; transition: background .14s ease, transform .14s ease; }
+.message-action-bar > button:hover, .message-reaction-picker > button:hover { background: rgba(59,130,246,.3); transform: translateY(-1px); }
+.message-reaction-picker, .message-more-menu { position: absolute; right: 0; bottom: calc(100% + .42rem); z-index: 21; display: flex; gap: .22rem; padding: .32rem; border-radius: 14px; animation: message-action-in .16s ease-out; }
+.message-reaction-picker > button { font-size: 1rem; }
+.message-more-menu { display: grid; min-width: 8.5rem; }
+.message-more-menu button { display: flex; align-items: center; gap: .5rem; padding: .52rem .65rem; border: 0; border-radius: 9px; color: #e5eefb; background: transparent; text-align: left; cursor: pointer; }
+.message-more-menu button:hover { background: rgba(59,130,246,.16); }.message-more-menu .danger-action { color: #fca5a5; }
+.message-reaction { position: absolute; right: .4rem; bottom: -.62rem; padding: .1rem .34rem; border: 1px solid rgba(96,165,250,.32); border-radius: 999px; background: #172238; box-shadow: 0 3px 8px rgba(2,6,23,.2); font-size: .82rem; }
+.app-shell.theme-light .message-action-bar, .app-shell.theme-light .message-reaction-picker, .app-shell.theme-light .message-more-menu, .app-shell.theme-light .message-reaction { background: rgba(248,251,255,.98); border-color: rgba(37,99,235,.2); box-shadow: 0 12px 30px rgba(30,64,175,.16); }
+.app-shell.theme-light .message-action-bar > button, .app-shell.theme-light .message-reaction-picker > button { color: #1e3a8a; background: rgba(37,99,235,.09); }.app-shell.theme-light .message-more-menu button { color: #1e3a8a; }
+@media (max-width: 480px) { .message-action-bar { max-width: calc(100vw - 2rem); } .message-reaction-picker { right: auto; left: 0; max-width: calc(100vw - 2rem); } }
