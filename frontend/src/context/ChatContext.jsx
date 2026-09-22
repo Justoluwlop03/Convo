@@ -3,7 +3,7 @@ import { io } from 'socket.io-client'
 import { useAuth } from './AuthContext'
 import { chatService } from '../services/chatService'
 import { userService } from '../services/userService'
-import { getQueuedMessages, loadConversations, loadMessages, queueMessage, removeQueuedMessage, saveConversations, saveMessages } from '../services/offline/database'
+import { deleteMessages as deleteCachedMessages, getQueuedMessages, loadConversations, loadMessages, queueMessage, removeQueuedMessage, saveConversations, saveMessages } from '../services/offline/database'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { syncAppBadge } from '../services/appBadge'
 import { showUnreadMessageNotification } from '../services/messageNotifications'
@@ -164,6 +164,17 @@ export function ChatProvider({ children }) {
         socket.on('group_added', ({ group }) => { const normalized = normalizeIncomingGroup(group); setChats(current => { const next = [normalized, ...current.filter(chat => chat.id !== normalized.id)]; persistChats(next); return next }) })
         socket.on('group_updated', ({ group }) => { if (!group) return; const normalized = normalizeIncomingGroup(group); setChats(current => { const next = current.map(chat => chat.id === normalized.id ? { ...chat, ...normalized } : chat); persistChats(next); return next }) })
         socket.on('group_removed', ({ groupId }) => setChats(current => current.filter(chat => chat.id !== groupId)))
+        socket.on('chat_deleted', ({ chatId }) => {
+            setChats(current => {
+                const next = current.filter(chat => chat.id !== chatId)
+                persistChats(next)
+                return next
+            })
+            setMessagesByChat(current => { const { [chatId]: _removed, ...next } = current; return next })
+            deleteCachedMessages(user.id, chatId).catch(() => {})
+            if (activeChatIdRef.current === chatId) setActiveChatId(null)
+            refreshUnreadTotal().catch(() => {})
+        })
         socket.on('message_status', ({ chatId, messageId, status, deliveredAt, readAt }) => {
             messageStatusByIdRef.current[messageId] = { status, deliveredAt, readAt, read: status === 'read' }
             updateMessages(chatId, (messages) => messages.map((message) => message.id === messageId ? { ...message, status, deliveredAt, readAt, read: status === 'read' } : message))
@@ -312,6 +323,20 @@ export function ChatProvider({ children }) {
         updateMessages(message.chatId, (messages) => messages.map((item) => item.id === messageId ? { ...item, text: 'This message was deleted', deleted: true, deletedAt: new Date().toISOString() } : item))
     }
 
+    const deleteChat = async (chatId) => {
+        const chat = chats.find(item => item.id === chatId)
+        if (!chat || chat.type === 'group') throw new Error('Only private conversations can be deleted here')
+        await chatService.deleteChat(chatId)
+        const next = chats.filter(item => item.id !== chatId)
+        setChats(next)
+        persistChats(next)
+        setMessagesByChat(current => { const { [chatId]: _removed, ...remaining } = current; return remaining })
+        deleteCachedMessages(user.id, chatId).catch(() => {})
+        if (activeChatId === chatId) setActiveChatId(next[0]?.id || null)
+        if (visibleConversationIdRef.current === chatId) visibleConversationIdRef.current = null
+        await refreshUnreadTotal().catch(() => {})
+    }
+
     useEffect(() => {
         document.title = unreadTotal ? `(${unreadTotal > 99 ? '99+' : unreadTotal}) Convo` : 'Convo'
         syncAppBadge(unreadTotal)
@@ -320,7 +345,7 @@ export function ChatProvider({ children }) {
 
     const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
     const updateNotifications = async settings => { const next = await notificationSettingsService.update(settings); setNotificationSettings(next); return next }
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal])
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

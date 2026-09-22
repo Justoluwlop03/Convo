@@ -69,6 +69,16 @@ export async function loadMessages(userId, chatId) {
   return (await get('messages', keyFor(userId, chatId)))?.messages || []
 }
 
+export async function deleteMessages(userId, chatId) {
+  const database = await openDatabase()
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('messages', 'readwrite')
+    transaction.objectStore('messages').delete(keyFor(userId, chatId))
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+  })
+}
+
 export async function queueMessage(userId, message) {
   await put('outbox', { key: keyFor(userId, message.id), userId, ...message, queuedAt: Date.now() })
 }

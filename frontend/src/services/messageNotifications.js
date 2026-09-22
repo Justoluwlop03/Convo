@@ -20,7 +20,7 @@ export async function showUnreadMessageNotification({ title, body, messageId }) 
 
   const options = {
     body,
-    tag: `convo-message-${messageId}`,
+    tag: `message-${messageId}`,
     renotify: false,
   }
 

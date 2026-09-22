@@ -67,7 +67,12 @@ export async function unreadCount(req, res) {
 
 export async function deleteChat(req, res) {
   requireId(req.params.id)
-  const result = await Chat.deleteOne({ _id: req.params.id, participants: req.user._id })
-  if (!result.deletedCount) throw httpError(404, 'Chat not found')
+  const chat = await Chat.findOne({ _id: req.params.id, participants: req.user._id })
+  if (!chat) throw httpError(404, 'Chat not found')
+  await Message.deleteMany({ chat: chat._id })
+  await chat.deleteOne()
+  chat.participants
+    .filter(participant => participant.toString() !== req.user._id.toString())
+    .forEach(participant => req.app.get('io')?.to(`user:${participant}`).emit('chat_deleted', { chatId: chat._id.toString() }))
   res.status(204).end()
 }

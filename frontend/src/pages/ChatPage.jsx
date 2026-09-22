@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Video, MoreHorizontal, PhoneCall, Plus } from 'lucide-react'
+import { ArrowLeft, Video, MoreHorizontal, PhoneCall, Plus, Trash2 } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
 import ChatList from '../components/chat/ChatList'
 import MessageBubble from '../components/chat/MessageBubble'
@@ -10,13 +10,17 @@ import UserSearch from '../components/users/UserSearch'
 import UserAvatar from '../components/users/UserAvatar'
 import CreateGroupModal from '../components/chat/CreateGroupModal'
 import GroupInfoModal from '../components/chat/GroupInfoModal'
+import DeleteChatModal from '../components/chat/DeleteChatModal'
+import { useAuth } from '../context/AuthContext'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { user } = useAuth()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
     const [replyingTo, setReplyingTo] = useState(null)
     const [creatingGroup, setCreatingGroup] = useState(false)
     const [showGroupInfo, setShowGroupInfo] = useState(false)
+    const [showDeleteChat, setShowDeleteChat] = useState(false)
     const navigate = useNavigate()
 
     useEffect(() => {
@@ -32,6 +36,7 @@ export default function ChatPage() {
     }, [isMobileChatOpen, selectedChat?.id, setConversationVisible])
 
     const conversationTitle = useMemo(() => selectedChat?.type === 'group' ? selectedChat.name : selectedChat?.participant?.username || 'Select a conversation', [selectedChat])
+    const groupIsLockedForMember = selectedChat?.type === 'group' && selectedChat.locked && !selectedChat.admins?.some(admin => admin.id === user?.id)
 
     const handleSelectChat = (chatId) => {
         selectChat(chatId)
@@ -93,6 +98,7 @@ export default function ChatPage() {
                                 <button type="button" className="icon-button"><PhoneCall size={16} /></button>
                                 <button type="button" className="icon-button"><Video size={16} /></button>
                                 <button type="button" className="icon-button"><MoreHorizontal size={16} /></button>
+                                {selectedChat.type !== 'group' && <button type="button" className="icon-button" aria-label="Delete conversation" onClick={() => setShowDeleteChat(true)}><Trash2 size={16} /></button>}
                             </div>
                         </header>
 
@@ -107,7 +113,7 @@ export default function ChatPage() {
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}
                         </div>
 
-                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} />
+                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} disabled={groupIsLockedForMember} disabledMessage="This group is locked. Only admins can send messages." />
                     </>
                 ) : (
                     <div className="empty-chat-shell">
@@ -121,6 +127,7 @@ export default function ChatPage() {
             </aside>
             {creatingGroup && <CreateGroupModal onClose={() => setCreatingGroup(false)} onCreate={createGroup} />}
             {showGroupInfo && selectedChat?.type === 'group' && <GroupInfoModal group={selectedChat} onClose={() => setShowGroupInfo(false)} onLeft={() => selectChat(chats.find(chat => chat.id !== selectedChat.id)?.id || null)} onChanged={refreshChats} />}
+            {showDeleteChat && selectedChat?.type !== 'group' && <DeleteChatModal name={selectedChat.participant?.username || 'this person'} onClose={() => setShowDeleteChat(false)} onDelete={() => deleteChat(selectedChat.id)} />}
         </div>
     )
 }

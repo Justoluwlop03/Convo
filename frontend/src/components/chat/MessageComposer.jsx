@@ -1,7 +1,7 @@
 import { SendHorizontal, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-export default function MessageComposer({ onSend, onTypingStart, onTypingStop, replyTo, onCancelReply }) {
+export default function MessageComposer({ onSend, onTypingStart, onTypingStop, replyTo, onCancelReply, disabled = false, disabledMessage = '' }) {
     const [value, setValue] = useState('')
     const typingTimeoutRef = useRef(null)
     const isTypingRef = useRef(false)
@@ -36,7 +36,7 @@ export default function MessageComposer({ onSend, onTypingStart, onTypingStop, r
     const handleSubmit = (event) => {
         event.preventDefault()
         const trimmed = value.trim()
-        if (!trimmed) return
+        if (!trimmed || disabled) return
         onSend(trimmed, replyTo)
         clearTimeout(typingTimeoutRef.current)
         stopTyping()
@@ -49,10 +49,11 @@ export default function MessageComposer({ onSend, onTypingStart, onTypingStop, r
             <textarea
                 value={value}
                 onChange={handleChange}
-                placeholder="Write a message..."
+                placeholder={disabled ? disabledMessage || 'Messaging is unavailable.' : 'Write a message...'}
                 rows={1}
+                disabled={disabled}
             />
-            <button type="submit" className="primary-button send-button" disabled={!value.trim()} aria-label="Send message">
+            <button type="submit" className="primary-button send-button" disabled={disabled || !value.trim()} aria-label="Send message">
                 <SendHorizontal size={16} />
                 <span>Send</span>
             </button>

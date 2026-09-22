@@ -7,6 +7,7 @@ const groupSchema = new mongoose.Schema({
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   admins: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
   members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
+  locked: { type: Boolean, default: false },
   lastMessage: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
 }, { timestamps: true })
 

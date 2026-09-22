@@ -12,7 +12,7 @@ function formatTime(value) {
 function normalizeChat(chat, currentUserId) {
     if (chat.type === 'group') return {
         id: chat.id, type: 'group', name: chat.name, avatar: chat.avatar, members: chat.members || [], admins: chat.admins || [], creator: chat.creator,
-        memberCount: chat.memberCount || chat.members?.length || 0, lastMessage: chat.lastMessage?.text || 'Group created', updatedAt: formatTime(chat.updatedAt), updatedAtValue: chat.updatedAt, unreadCount: Number(chat.unreadCount) || 0,
+        memberCount: chat.memberCount || chat.members?.length || 0, locked: Boolean(chat.locked), lastMessage: chat.lastMessage?.text || 'Group created', updatedAt: formatTime(chat.updatedAt), updatedAtValue: chat.updatedAt, unreadCount: Number(chat.unreadCount) || 0,
     }
     return {
         id: chat.id,
@@ -50,6 +50,10 @@ export const chatService = {
         return normalizeChat(data.chat, currentUserId)
     },
 
+    async deleteChat(chatId) {
+        await api.delete(`/chats/${chatId}`)
+    },
+
     async sendMessage(chatId, text, currentUserId, replyTo = null) {
         const { data } = await api.post('/messages', { chatId, text, replyTo })
         return normalizeMessage(data.message, currentUserId)
@@ -59,6 +63,8 @@ export const chatService = {
     async createGroup({ name, memberIds, avatar }, currentUserId) { const form = new FormData(); form.append('name', name); form.append('memberIds', JSON.stringify(memberIds)); if (avatar) form.append('avatar', avatar); const { data } = await api.post('/groups', form); return normalizeChat(data.group, currentUserId) },
     async updateGroup(groupId, payload, currentUserId) { const form = new FormData(); if (payload.name) form.append('name', payload.name); if (payload.avatar) form.append('avatar', payload.avatar); const { data } = await api.patch(`/groups/${groupId}`, form); return normalizeChat(data.group, currentUserId) },
     async addGroupMembers(groupId, memberIds, currentUserId) { const { data } = await api.post(`/groups/${groupId}/members`, { memberIds }); return normalizeChat(data.group, currentUserId) },
+    async removeGroupMember(groupId, userId) { await api.delete(`/groups/${groupId}/members/${userId}`) },
+    async setGroupLock(groupId, locked) { const { data } = await api.patch(`/groups/${groupId}/lock`, { locked }); return normalizeChat(data.group) },
     async leaveGroup(groupId) { await api.post(`/groups/${groupId}/leave`) },
     async sendGroupMessage(groupId, text, currentUserId) { const { data } = await api.post(`/groups/${groupId}/messages`, { text }); return normalizeMessage(data.message, currentUserId) },
 

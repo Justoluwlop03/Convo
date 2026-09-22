@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
+import { randomUUID } from 'node:crypto'
 import User from '../models/User.js'
 import { httpError } from '../middleware/errorMiddleware.js'
+import { sendFriendPush } from '../utils/pushNotifications.js'
 
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -82,6 +84,12 @@ export async function sendFriendRequest(req, res) {
     User.findByIdAndUpdate(req.user._id, { $addToSet: { sentFriendRequests: recipient._id } }),
     User.findByIdAndUpdate(recipient._id, { $addToSet: { receivedFriendRequests: req.user._id } }),
   ])
+  sendFriendPush(recipient._id, {
+    title: 'New friend request',
+    text: `${req.user.username} sent you a friend request`,
+    notificationId: `friend-request-${randomUUID()}`,
+    destination: '/requests',
+  })
   res.status(201).json({ user: { ...recipient.toProfileJSON(), relationship: 'outgoing' } })
 }
 
@@ -110,6 +118,11 @@ export async function acceptFriendRequest(req, res) {
     User.findByIdAndUpdate(req.user._id, { $pull: { receivedFriendRequests: sender._id }, $addToSet: { friends: sender._id } }),
     User.findByIdAndUpdate(sender._id, { $pull: { sentFriendRequests: req.user._id }, $addToSet: { friends: req.user._id } }),
   ])
+  sendFriendPush(sender._id, {
+    title: 'Friend request accepted',
+    text: `${req.user.username} accepted your friend request`,
+    notificationId: `friend-accepted-${randomUUID()}`,
+  })
   res.json({ user: { ...sender.toProfileJSON(), relationship: 'friends' } })
 }
 

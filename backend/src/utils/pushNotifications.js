@@ -21,7 +21,7 @@ export function pushConfiguration() {
   return { enabled: configured(), publicKey: configured() ? process.env.VAPID_PUBLIC_KEY : null }
 }
 
-export async function sendMessagePush(userId, { conversationId, title, text, messageId }) {
+async function sendPush(userId, { title, text, privateText = 'You have a new notification', notificationId, conversationId = '', destination = '/', muteConversation = false }) {
   try {
     if (!configured()) {
       console.warn('Web Push is skipped because VAPID is not configured')
@@ -29,29 +29,49 @@ export async function sendMessagePush(userId, { conversationId, title, text, mes
     }
     const user = await User.findById(userId).select('notificationSettings')
     const settings = user?.notificationSettings
-    if (!user || settings?.alertsEnabled === false || settings?.mutedConversationIds?.some(id => id.toString() === conversationId)) return
+    if (!user || settings?.alertsEnabled === false || (muteConversation && settings?.mutedConversationIds?.some(id => id.toString() === conversationId))) return
     configure()
     const payload = JSON.stringify({
       conversationId,
       title,
-      body: settings?.showPreview === false ? 'You have a new message' : text,
+      body: settings?.showPreview === false ? privateText : text,
+      privateBody: privateText,
       showPreview: settings?.showPreview !== false,
-      messageId,
+      messageId: notificationId,
+      destination,
       unreadCount: await unreadTotalFor(userId),
     })
     const subscriptions = await PushSubscription.find({ user: userId })
+    if (!subscriptions.length) {
+      console.info('Web Push has no subscription for the recipient', { notificationId })
+      return
+    }
     await Promise.all(subscriptions.map(async subscription => {
-      try { await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload) }
+      try {
+        // Keep each message independent. There is intentionally no debounce,
+        // shared "already notified" flag, or notification payload reuse here.
+        console.info('Web Push delivery attempt', { notificationId })
+        const response = await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload)
+        console.info('Web Push delivery succeeded', { notificationId, statusCode: response.statusCode })
+      }
       catch (error) {
         if (error.statusCode === 404 || error.statusCode === 410) {
           await subscription.deleteOne()
-          console.info('Removed an expired Web Push subscription')
+          console.info('Removed an expired Web Push subscription', { notificationId })
           return
         }
-        console.error('Web Push delivery failed', { statusCode: error.statusCode, message: error.message })
+        console.error('Web Push delivery failed', { notificationId, statusCode: error.statusCode, message: error.message })
       }
     }))
   } catch (error) {
     console.error('Web Push preparation failed', { message: error.message })
   }
+}
+
+export function sendMessagePush(userId, { conversationId, title, text, messageId }) {
+  return sendPush(userId, { title, text, privateText: 'You have a new message', notificationId: messageId, conversationId, muteConversation: true })
+}
+
+export function sendFriendPush(userId, { title, text, privateText = 'You have a friend update', notificationId, destination = '/' }) {
+  return sendPush(userId, { title, text, privateText, notificationId, destination })
 }
