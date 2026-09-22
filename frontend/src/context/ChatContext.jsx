@@ -269,7 +269,7 @@ export function ChatProvider({ children }) {
     const searchUsers = useCallback((query) => userService.searchUsers(query), [])
 
     const openChat = async (otherUser) => {
-        const existing = chats.find((chat) => chat.participant.id === otherUser.id)
+        const existing = chats.find((chat) => chat.type !== 'group' && chat.participant?.id === otherUser.id)
         if (existing) { setActiveChatId(existing.id); return existing }
         const nextChat = await chatService.createChat(otherUser.id, user.id)
         setChats((current) => { const next = [nextChat, ...current.filter((chat) => chat.id !== nextChat.id)]; persistChats(next); return next })
