@@ -80,6 +80,15 @@ body {
 
 .offline-notice { background: rgba(127, 29, 29, 0.96); }
 
+.notification-settings { max-width: 32rem; }
+.notification-setting, .notification-conversation { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 0; border-bottom: 1px solid rgba(148, 163, 184, .18); }
+.notification-setting > span { display: grid; grid-template-columns: auto 1fr; column-gap: .55rem; align-items: center; }
+.notification-setting small { grid-column: 2; color: #94a3b8; }
+.notification-setting input { inline-size: 1.05rem; block-size: 1.05rem; accent-color: #38bdf8; }
+.notification-settings h3 { margin: 1.2rem 0 .2rem; font-size: .88rem; }
+.notification-conversations { max-height: 13rem; overflow: auto; }
+.notification-conversation .ghost-button { min-width: 5.6rem; justify-content: center; }
+
 .install-convo-button {
   width: auto !important;
   padding-inline: 0.65rem !important;

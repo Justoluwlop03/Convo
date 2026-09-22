@@ -16,6 +16,32 @@ function profileView(user, currentUser) {
   return { ...user.toProfileJSON(), relationship: relationshipFor(currentUser, user._id) }
 }
 
+function notificationSettingsView(user) {
+  const settings = user.notificationSettings || {}
+  return {
+    alertsEnabled: settings.alertsEnabled !== false,
+    showPreview: settings.showPreview !== false,
+    mutedConversationIds: (settings.mutedConversationIds || []).map(id => id.toString()),
+  }
+}
+
+export async function getNotificationSettings(req, res) {
+  res.json({ settings: notificationSettingsView(req.user) })
+}
+
+export async function updateNotificationSettings(req, res) {
+  const { alertsEnabled, showPreview, mutedConversationIds } = req.body || {}
+  if (alertsEnabled !== undefined && typeof alertsEnabled !== 'boolean') throw httpError(400, 'alertsEnabled must be a boolean')
+  if (showPreview !== undefined && typeof showPreview !== 'boolean') throw httpError(400, 'showPreview must be a boolean')
+  if (mutedConversationIds !== undefined && (!Array.isArray(mutedConversationIds) || mutedConversationIds.length > 200 || mutedConversationIds.some(id => !mongoose.isValidObjectId(id)))) throw httpError(400, 'mutedConversationIds must contain valid conversation ids')
+  req.user.notificationSettings ||= {}
+  if (alertsEnabled !== undefined) req.user.notificationSettings.alertsEnabled = alertsEnabled
+  if (showPreview !== undefined) req.user.notificationSettings.showPreview = showPreview
+  if (mutedConversationIds !== undefined) req.user.notificationSettings.mutedConversationIds = [...new Set(mutedConversationIds)]
+  await req.user.save()
+  res.json({ settings: notificationSettingsView(req.user) })
+}
+
 export async function getRecommendedUsers(req, res) {
   const users = await User.find({
     _id: { $ne: req.user._id },

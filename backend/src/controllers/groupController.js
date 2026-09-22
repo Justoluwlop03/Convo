@@ -8,6 +8,7 @@ import { areFriends } from '../utils/friendships.js'
 import { uploadGroupAvatar, deleteAvatar } from '../config/cloudinary.js'
 import { messageView } from './messageController.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
+import { sendMessagePush } from '../utils/pushNotifications.js'
 
 const memberIdsInput = z.object({ memberIds: z.array(z.string()).min(1).max(100) })
 const createInput = z.object({ name: z.string().trim().min(1).max(80), memberIds: z.array(z.string()).min(1).max(100) })
@@ -69,6 +70,7 @@ export async function createGroupMessage(req, res) {
     .map(async (member) => {
       const recipientGroup = groupView(updatedGroup, await unreadCount(updatedGroup._id, member._id))
       io?.to(`user:${member._id}`).emit('group_message_received', { message: view, group: recipientGroup })
+      sendMessagePush(member._id, { conversationId: updatedGroup._id.toString(), title: updatedGroup.name, text: view.text, messageId: view.id }).catch(() => {})
     }))
 
   io?.to(`group:${group._id}`).emit('group_message', { message: view })

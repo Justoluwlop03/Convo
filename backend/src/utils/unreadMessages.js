@@ -10,3 +10,13 @@ export function unreadMessageFilter(userId, conversation) {
     ],
   }
 }
+
+export function unreadMessageCondition(userId) {
+  return {
+    sender: { $ne: userId },
+    $or: [
+      { readBy: { $exists: true, $ne: userId } },
+      { readBy: { $exists: false }, read: false },
+    ],
+  }
+}

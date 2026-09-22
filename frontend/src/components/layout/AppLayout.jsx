@@ -5,11 +5,13 @@ import { useAuth } from '../../context/AuthContext'
 import MobileSidebar from './MobileSidebar'
 import UserAvatar from '../users/UserAvatar'
 import InstallConvoButton from '../pwa/InstallConvoButton'
+import NotificationSettingsModal from '../pwa/NotificationSettingsModal'
 
 export default function AppLayout() {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+    const [showNotificationSettings, setShowNotificationSettings] = useState(false)
     const [isLightMode, setIsLightMode] = useState(() => {
         const savedTheme = localStorage.getItem('convo-theme')
         if (savedTheme) return savedTheme === 'light'
@@ -86,7 +88,7 @@ export default function AppLayout() {
                         >
                             {isLightMode ? <MoonStar size={16} /> : <SunMedium size={16} />}
                         </button>
-                        <button type="button" className="icon-button muted" aria-label="Notifications">
+                        <button type="button" className="icon-button muted" aria-label="Notification settings" onClick={() => setShowNotificationSettings(true)}>
                             <Bell size={16} />
                         </button>
                     </div>
@@ -105,7 +107,7 @@ export default function AppLayout() {
                         <button type="button" className="icon-button" aria-label={isLightMode ? 'Switch to dark mode' : 'Switch to light mode'} onClick={toggleTheme}>
                             {isLightMode ? <MoonStar size={19} /> : <SunMedium size={19} />}
                         </button>
-                        <button type="button" className="icon-button" aria-label="Notifications">
+                        <button type="button" className="icon-button" aria-label="Notification settings" onClick={() => setShowNotificationSettings(true)}>
                             <Bell size={19} />
                         </button>
                         <button type="button" className="icon-button mobile-menu-button" aria-label="Open menu" aria-expanded={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(true)}>
@@ -140,6 +142,7 @@ export default function AppLayout() {
                 isLightMode={isLightMode}
                 onToggleTheme={toggleTheme}
             />
+            {showNotificationSettings && <NotificationSettingsModal onClose={() => setShowNotificationSettings(false)} />}
         </div>
     )
 }

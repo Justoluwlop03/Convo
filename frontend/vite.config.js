@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'prompt',
       // Enable the service worker on localhost too, so the install flow can
       // be tested with `npm run dev` rather than only after deployment.
@@ -14,7 +17,7 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
-      includeAssets: ['icons/convo-icon.svg'],
+      includeAssets: ['icons/convo-icon.svg', 'icons/convo-icon-192.png', 'icons/convo-icon-512.png'],
       manifest: {
         name: 'Convo',
         short_name: 'Convo',
@@ -26,20 +29,12 @@ export default defineConfig({
         theme_color: '#0b1220',
         background_color: '#0b1220',
         icons: [
-          { src: 'icons/convo-icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icons/convo-icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: 'icons/convo-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icons/convo-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
-      workbox: {
-        navigateFallback: '/index.html',
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /\/api\//,
-            handler: 'NetworkOnly',
-            method: 'GET',
-          },
-        ],
       },
     }),
   ],

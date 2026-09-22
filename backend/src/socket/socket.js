@@ -7,6 +7,7 @@ import User from '../models/User.js'
 import { messageView } from '../controllers/messageController.js'
 import { areFriends } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
+import { sendMessagePush } from '../utils/pushNotifications.js'
 
 const onlineSockets = new Map()
 const roomFor = chatId => `chat:${chatId}`
@@ -95,6 +96,7 @@ export function configureSocket(io) {
         const payload = messageView(populated)
         const recipientId = chat.participants.find(participant => participant.toString() !== userId)?.toString()
         if (recipientId) io.to(userRoomFor(recipientId)).emit('message_received', { message: payload })
+        if (recipientId) sendMessagePush(recipientId, { conversationId: chat._id.toString(), title: payload.sender.username, text: payload.text, messageId: payload.id }).catch(() => {})
         acknowledge?.({ ok: true, message: payload })
       } catch (error) {
         acknowledge?.({ error: error.message })

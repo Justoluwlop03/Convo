@@ -12,7 +12,7 @@ import CreateGroupModal from '../components/chat/CreateGroupModal'
 import GroupInfoModal from '../components/chat/GroupInfoModal'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, editMessage, deleteMessage, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
     const [replyingTo, setReplyingTo] = useState(null)
     const [creatingGroup, setCreatingGroup] = useState(false)
@@ -24,6 +24,12 @@ export default function ChatPage() {
         window.addEventListener('popstate', handlePopState)
         return () => window.removeEventListener('popstate', handlePopState)
     }, [])
+
+    useEffect(() => {
+        const visible = Boolean(selectedChat) && (!window.matchMedia('(max-width: 767px)').matches || isMobileChatOpen)
+        setConversationVisible(selectedChat?.id, visible)
+        return () => setConversationVisible(selectedChat?.id, false)
+    }, [isMobileChatOpen, selectedChat?.id, setConversationVisible])
 
     const conversationTitle = useMemo(() => selectedChat?.type === 'group' ? selectedChat.name : selectedChat?.participant?.username || 'Select a conversation', [selectedChat])
 

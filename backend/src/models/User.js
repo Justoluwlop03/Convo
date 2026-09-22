@@ -13,6 +13,11 @@ const userSchema = new mongoose.Schema({
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   sentFriendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   receivedFriendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  notificationSettings: {
+    alertsEnabled: { type: Boolean, default: true },
+    showPreview: { type: Boolean, default: true },
+    mutedConversationIds: [{ type: mongoose.Schema.Types.ObjectId }],
+  },
 }, { timestamps: true })
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {

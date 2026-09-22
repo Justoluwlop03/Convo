@@ -5,6 +5,7 @@ import Chat from '../models/Chat.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
+import { sendMessagePush } from '../utils/pushNotifications.js'
 
 const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
 const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
@@ -82,6 +83,8 @@ export async function createMessage(req, res) {
   const populated = await message.populate(messagePopulate)
   const view = messageView(populated)
   emitToMembers(req, chat, 'message_received', { message: view })
+  const recipientId = chat.participants.find(participant => participant.toString() !== req.user._id.toString())?.toString()
+  if (recipientId) sendMessagePush(recipientId, { conversationId: chat._id.toString(), title: view.sender.username, text: view.text, messageId: view.id }).catch(() => {})
   res.status(201).json({ message: view })
 }
 

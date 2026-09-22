@@ -5,6 +5,7 @@ import Message from '../models/Message.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship, requireFriends } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
+import { unreadTotalFor } from '../utils/unreadTotal.js'
 
 const chatView = (chat, unreadCount = 0) => ({
   id: chat._id.toString(),
@@ -58,6 +59,10 @@ export async function getChat(req, res) {
   await requireChatFriendship(chat, req.user._id)
   const unreadCounts = await unreadCountsFor([chat], req.user._id)
   res.json({ chat: chatView(chat, unreadCounts.get(chat._id.toString()) || 0) })
+}
+
+export async function unreadCount(req, res) {
+  res.json({ unreadCount: await unreadTotalFor(req.user._id) })
 }
 
 export async function deleteChat(req, res) {

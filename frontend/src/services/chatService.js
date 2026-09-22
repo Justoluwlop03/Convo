@@ -34,6 +34,7 @@ function normalizeMessage(message, currentUserId) {
 }
 
 export const chatService = {
+    async getUnreadCount() { const { data } = await api.get('/chats/unread-count'); return Number(data.unreadCount) || 0 },
     async getChats(currentUserId) {
         const [chatsResult, groupsResult] = await Promise.all([api.get('/chats'), api.get('/groups')])
         return [...chatsResult.data.chats, ...groupsResult.data.groups].map((chat) => normalizeChat(chat, currentUserId)).sort((a, b) => new Date(b.updatedAtValue) - new Date(a.updatedAtValue))

@@ -5,6 +5,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { useChat } from '../../context/ChatContext'
 import { syncAppBadge } from '../../services/appBadge'
 import { canRequestNotificationPermission, requestNotificationPermission } from '../../services/messageNotifications'
+import { subscribeToPush } from '../../services/pushSubscriptionService'
 
 function isStandalone() {
   return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true
@@ -22,12 +23,16 @@ export default function PwaStatus() {
 
   useEffect(() => {
     setCanEnableNotifications(isStandalone() && canRequestNotificationPermission())
+    if (isStandalone() && typeof Notification !== 'undefined' && Notification.permission === 'granted') subscribeToPush().catch(() => {})
   }, [])
 
   const enableNotifications = async () => {
     const granted = await requestNotificationPermission()
     setCanEnableNotifications(false)
-    if (granted) syncAppBadge(unreadCount)
+    if (granted) {
+      syncAppBadge(unreadCount)
+      subscribeToPush().catch(() => {})
+    }
   }
 
   return (
