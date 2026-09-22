@@ -53,4 +53,24 @@ export async function addAdmin(req, res) { const group = await memberGroup(req.p
 export async function removeAdmin(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); requireAdmin(group, req.user._id); id(req.params.userId); if (req.params.userId === group.creator._id.toString()) throw httpError(400, 'The group creator cannot be demoted'); if (!includes(group.admins, req.params.userId)) throw httpError(404, 'Admin not found'); if (group.admins.length === 1) throw httpError(400, 'A group must have an administrator'); group.admins = group.admins.filter(admin => admin.toString() !== req.params.userId); await group.save(); res.json({ group: groupView(await populated(Group.findById(group._id))) }) }
 export async function leaveGroup(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const userId = req.user._id.toString(); group.members = group.members.filter(member => member.toString() !== userId); group.admins = group.admins.filter(admin => admin.toString() !== userId); if (!group.members.length) { await Message.deleteMany({ group: group._id }); await group.deleteOne(); return res.status(204).end() } if (!group.admins.length) group.admins = [group.members[0]]; if (group.creator._id.toString() === userId) group.creator = group.admins[0]; await group.save(); const view = groupView(await populated(Group.findById(group._id))); const io = req.app.get('io'); io?.to(`user:${userId}`).emit('group_removed', { groupId: group._id.toString() }); io?.to(`group:${group._id}`).emit('group_updated', { group: view }); res.json({ group: view }) }
 export async function getGroupMessages(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const messages = await Message.find({ group: group._id }).sort({ createdAt: 1 }).populate([{ path: 'sender', select: '-passwordHash' }, { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } }]); res.json({ messages: messages.map(messageView) }) }
-export async function createGroupMessage(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const text = String(req.body.text || '').trim(); if (!text || text.length > 5000) throw httpError(400, 'Message text is invalid'); const message = await Message.create({ group: group._id, sender: req.user._id, text }); await Group.findByIdAndUpdate(group._id, { lastMessage: message._id, updatedAt: new Date() }); const view = messageView(await message.populate([{ path: 'sender', select: '-passwordHash' }])); const io = req.app.get('io'); group.members.filter(member => member.toString() !== req.user._id.toString()).forEach(member => io?.to(`user:${member}`).emit('group_message_received', { message: view })); io?.to(`group:${group._id}`).emit('group_message', { message: view }); res.status(201).json({ message: view }) }
+export async function createGroupMessage(req, res) {
+  const group = await memberGroup(req.params.groupId, req.user._id)
+  const text = String(req.body.text || '').trim()
+  if (!text || text.length > 5000) throw httpError(400, 'Message text is invalid')
+
+  const message = await Message.create({ group: group._id, sender: req.user._id, text })
+  await Group.findByIdAndUpdate(group._id, { lastMessage: message._id, updatedAt: new Date() })
+  const view = messageView(await message.populate([{ path: 'sender', select: '-passwordHash' }]))
+  const updatedGroup = await populated(Group.findById(group._id))
+  const io = req.app.get('io')
+
+  await Promise.all(updatedGroup.members
+    .filter(member => member._id.toString() !== req.user._id.toString())
+    .map(async (member) => {
+      const recipientGroup = groupView(updatedGroup, await unreadCount(updatedGroup._id, member._id))
+      io?.to(`user:${member._id}`).emit('group_message_received', { message: view, group: recipientGroup })
+    }))
+
+  io?.to(`group:${group._id}`).emit('group_message', { message: view })
+  res.status(201).json({ message: view })
+}

@@ -19,6 +19,7 @@ export default defineConfig({
         name: 'Convo',
         short_name: 'Convo',
         description: 'A simple real-time chat application',
+        id: '/',
         start_url: '/',
         display: 'standalone',
         orientation: 'portrait',

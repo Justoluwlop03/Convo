@@ -14,6 +14,18 @@ function temporaryMessage(chatId, text, user) {
     return { id, chatId, text, sender: user, senderId: user.id, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), createdAt: new Date().toISOString(), isOwn: true, status: 'pending' }
 }
 
+function normalizeIncomingGroup(group) {
+    return {
+        ...group,
+        type: 'group',
+        memberCount: group.memberCount || group.members?.length || 0,
+        lastMessage: group.lastMessage?.text || 'Group created',
+        updatedAt: new Date(group.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        updatedAtValue: group.updatedAt,
+        unreadCount: Number(group.unreadCount) || 0,
+    }
+}
+
 export function ChatProvider({ children }) {
     const { user, token } = useAuth()
     const isOnline = useOnlineStatus()
@@ -97,24 +109,33 @@ export function ChatProvider({ children }) {
             updateMessages(message.chatId, (messages) => messages.some((item) => item.id === normalized.id) ? messages : [...messages, normalized])
             setChats((current) => {
                 const isActive = activeChatIdRef.current === message.chatId
-                const next = current.map((chat) => chat.id === message.chatId
-                    ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp, unreadCount: isActive ? 0 : (chat.unreadCount || 0) + 1 }
-                    : chat)
+                const currentChat = current.find((chat) => chat.id === message.chatId)
+                const updatedChat = currentChat && { ...currentChat, lastMessage: message.text, updatedAt: normalized.timestamp, updatedAtValue: message.createdAt, unreadCount: isActive ? 0 : (currentChat.unreadCount || 0) + 1 }
+                const next = updatedChat ? [updatedChat, ...current.filter((chat) => chat.id !== message.chatId)] : current
                 persistChats(next)
                 return next
             })
             socket.emit('message_delivered', { messageId: message.id, chatId: message.chatId })
             if (activeChatIdRef.current === message.chatId) socket.emit('messages_read', { chatId: message.chatId })
         })
-        socket.on('group_message_received', ({ message }) => {
+        socket.on('group_message_received', ({ message, group }) => {
             const chatId = message.groupId
             const normalized = { ...message, chatId, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: false }
             updateMessages(chatId, messages => messages.some(item => item.id === normalized.id) ? messages : [...messages, normalized])
-            setChats(current => { const active = activeChatIdRef.current === chatId; const next = current.map(chat => chat.id === chatId ? { ...chat, lastMessage: message.text, updatedAt: normalized.timestamp, unreadCount: active ? 0 : (chat.unreadCount || 0) + 1 } : chat); persistChats(next); return next })
+            setChats(current => {
+                const active = activeChatIdRef.current === chatId
+                const currentGroup = current.find(chat => chat.id === chatId)
+                const incomingGroup = group ? normalizeIncomingGroup(group) : currentGroup
+                if (!incomingGroup) return current
+                const updatedGroup = { ...currentGroup, ...incomingGroup, lastMessage: message.text, updatedAt: normalized.timestamp, updatedAtValue: message.createdAt, unreadCount: active ? 0 : (group ? incomingGroup.unreadCount : (currentGroup.unreadCount || 0) + 1) }
+                const next = [updatedGroup, ...current.filter(chat => chat.id !== chatId)]
+                persistChats(next)
+                return next
+            })
             if (activeChatIdRef.current === chatId) socket.emit('messages_read', { chatId })
         })
-        socket.on('group_added', ({ group }) => { const normalized = { ...group, type: 'group', memberCount: group.memberCount || group.members?.length || 0, lastMessage: group.lastMessage?.text || 'Group created', updatedAt: new Date(group.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; setChats(current => { const next = [normalized, ...current.filter(chat => chat.id !== normalized.id)]; persistChats(next); return next }) })
-        socket.on('group_updated', ({ group }) => { if (!group) return; const normalized = { ...group, type: 'group', memberCount: group.memberCount || group.members?.length || 0, lastMessage: group.lastMessage?.text || 'Group created', updatedAt: new Date(group.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; setChats(current => { const next = current.map(chat => chat.id === normalized.id ? { ...chat, ...normalized } : chat); persistChats(next); return next }) })
+        socket.on('group_added', ({ group }) => { const normalized = normalizeIncomingGroup(group); setChats(current => { const next = [normalized, ...current.filter(chat => chat.id !== normalized.id)]; persistChats(next); return next }) })
+        socket.on('group_updated', ({ group }) => { if (!group) return; const normalized = normalizeIncomingGroup(group); setChats(current => { const next = current.map(chat => chat.id === normalized.id ? { ...chat, ...normalized } : chat); persistChats(next); return next }) })
         socket.on('group_removed', ({ groupId }) => setChats(current => current.filter(chat => chat.id !== groupId)))
         socket.on('message_status', ({ chatId, messageId, status, deliveredAt, readAt }) => {
             messageStatusByIdRef.current[messageId] = { status, deliveredAt, readAt, read: status === 'read' }

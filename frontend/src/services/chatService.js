@@ -12,13 +12,14 @@ function formatTime(value) {
 function normalizeChat(chat, currentUserId) {
     if (chat.type === 'group') return {
         id: chat.id, type: 'group', name: chat.name, avatar: chat.avatar, members: chat.members || [], admins: chat.admins || [], creator: chat.creator,
-        memberCount: chat.memberCount || chat.members?.length || 0, lastMessage: chat.lastMessage?.text || 'Group created', updatedAt: formatTime(chat.updatedAt), unreadCount: Number(chat.unreadCount) || 0,
+        memberCount: chat.memberCount || chat.members?.length || 0, lastMessage: chat.lastMessage?.text || 'Group created', updatedAt: formatTime(chat.updatedAt), updatedAtValue: chat.updatedAt, unreadCount: Number(chat.unreadCount) || 0,
     }
     return {
         id: chat.id,
         participant: participantFor(chat, currentUserId),
         lastMessage: chat.lastMessage?.text || 'Start a conversation',
         updatedAt: formatTime(chat.updatedAt),
+        updatedAtValue: chat.updatedAt,
         unreadCount: Number(chat.unreadCount) || 0,
     }
 }
@@ -35,7 +36,7 @@ function normalizeMessage(message, currentUserId) {
 export const chatService = {
     async getChats(currentUserId) {
         const [chatsResult, groupsResult] = await Promise.all([api.get('/chats'), api.get('/groups')])
-        return [...chatsResult.data.chats, ...groupsResult.data.groups].map((chat) => normalizeChat(chat, currentUserId)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        return [...chatsResult.data.chats, ...groupsResult.data.groups].map((chat) => normalizeChat(chat, currentUserId)).sort((a, b) => new Date(b.updatedAtValue) - new Date(a.updatedAtValue))
     },
 
     async getMessages(chatId, currentUserId) {
