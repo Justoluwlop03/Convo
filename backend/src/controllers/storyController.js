@@ -49,7 +49,9 @@ function asView(story, viewerId, { full = false, viewedIds = new Set(), viewCoun
   const own = story.user._id.toString() === viewerId.toString()
   return {
     id: story._id.toString(), user: story.user.toProfileJSON(), mediaType: story.mediaType,
-    mediaUrl: full ? story.mediaUrl : undefined, thumbnailUrl: thumbnail(story.mediaUrl, story.mediaType),
+    // Story groups are already visibility-filtered for the requesting user. Including
+    // the CDN URL lets the viewer request the next media while the current story plays.
+    mediaUrl: story.mediaUrl, thumbnailUrl: thumbnail(story.mediaUrl, story.mediaType),
     text: story.text, caption: story.caption, createdAt: story.createdAt, expiresAt: story.expiresAt,
     timeAgo: elapsed(story.createdAt), visibility: story.visibility, isOwner: own,
     viewed: own || viewedIds.has(story._id.toString()),

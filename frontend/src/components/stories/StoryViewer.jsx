@@ -36,7 +36,10 @@ export default function StoryViewer() {
   const [deleting, setDeleting] = useState(false)
   const [paused, setPaused] = useState(false)
   const [videoProgress, setVideoProgress] = useState(0)
+  const [mediaReady, setMediaReady] = useState(false)
   const pointerStart = useRef(null)
+  const videoRef = useRef(null)
+  const pressedVideo = useRef(null)
   const currentGroup = viewer?.groups[viewer.groupIndex]
   const selected = currentGroup?.stories[viewer?.index]
   const isOwner = story?.isOwner === true
@@ -44,7 +47,7 @@ export default function StoryViewer() {
   useEffect(() => {
     if (!selected) return undefined
     let alive = true
-    setStory(null); setError(''); setComment(''); setNotice(''); setViewers([]); setShowViewers(false); setConfirmingDelete(false); setPaused(false); setVideoProgress(0)
+    setStory(null); setError(''); setComment(''); setNotice(''); setViewers([]); setShowViewers(false); setConfirmingDelete(false); setPaused(false); setVideoProgress(0); setMediaReady(false)
     storyService.get(selected.id).then(async next => {
       if (!alive) return
       setStory(next)
@@ -58,6 +61,31 @@ export default function StoryViewer() {
   }, [refreshStories, selected?.id])
 
   useEffect(() => {
+    if (selected?.mediaType === 'image' && selected.mediaUrl) {
+      const image = new Image()
+      image.src = selected.mediaUrl
+    }
+  }, [selected?.id, selected?.mediaType, selected?.mediaUrl])
+
+  // Warm the adjacent CDN media while the current status is visible. Browser cache
+  // handles reuse when the viewer reaches that status.
+  useEffect(() => {
+    const adjacent = [currentGroup?.stories?.[viewer?.index + 1], currentGroup?.stories?.[viewer?.index - 1]]
+    adjacent.forEach(item => {
+      if (!item?.mediaUrl) return
+      if (item.mediaType === 'image') { const image = new Image(); image.src = item.mediaUrl }
+      else if (item.mediaType === 'video') { const video = document.createElement('video'); video.preload = 'metadata'; video.src = item.mediaUrl }
+    })
+  }, [currentGroup, viewer?.index])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !mediaReady) return
+    if (paused || showViewers || confirmingDelete) video.pause()
+    else video.play().catch(() => {})
+  }, [confirmingDelete, mediaReady, paused, showViewers, story?.id])
+
+  useEffect(() => {
     if (!socket || !selected?.id) return undefined
     const handleDeleted = event => { if (event.storyId === selected.id) closeViewer() }
     socket.on('story_deleted', handleDeleted)
@@ -65,10 +93,10 @@ export default function StoryViewer() {
   }, [closeViewer, selected?.id, socket])
 
   useEffect(() => {
-    if (!story || paused || showViewers || confirmingDelete || story.mediaType === 'video') return undefined
+    if (!story || paused || showViewers || confirmingDelete || story.mediaType === 'video' || story.mediaType !== 'text' && !mediaReady) return undefined
     const timer = window.setTimeout(() => moveViewer(1), STORY_DURATION)
     return () => window.clearTimeout(timer)
-  }, [confirmingDelete, isOwner, moveViewer, paused, showViewers, story, viewer?.index, viewer?.groupIndex])
+  }, [confirmingDelete, isOwner, mediaReady, moveViewer, paused, showViewers, story, viewer?.index, viewer?.groupIndex])
 
   useEffect(() => {
     const onKeyDown = event => {
@@ -127,7 +155,15 @@ export default function StoryViewer() {
 
   const handlePointerDown = event => {
     if (event.target.closest('button, input, a, form')) return
+    if (event.currentTarget.setPointerCapture && event.pointerId !== undefined) {
+      try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* capture may be unavailable after a browser gesture */ }
+    }
     pointerStart.current = { x: event.clientX, y: event.clientY }
+    const video = videoRef.current
+    if (video) {
+      pressedVideo.current = { video, wasPlaying: !video.paused, currentTime: video.currentTime }
+      video.pause()
+    }
     setPaused(true)
   }
   const handlePointerUp = event => {
@@ -136,8 +172,20 @@ export default function StoryViewer() {
     if (!start) return
     const dx = event.clientX - start.x
     const dy = event.clientY - start.y
+    const navigated = Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) || dy > 80
     if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy)) moveViewer(dx < 0 ? 1 : -1)
     else if (dy > 80) closeViewer()
+    const press = pressedVideo.current
+    pressedVideo.current = null
+    if (!navigated && press?.wasPlaying && press.video === videoRef.current) press.video.play().catch(() => {})
+    setPaused(false)
+  }
+
+  const cancelPress = () => {
+    pointerStart.current = null
+    const press = pressedVideo.current
+    pressedVideo.current = null
+    if (press?.wasPlaying && press.video === videoRef.current) press.video.play().catch(() => {})
     setPaused(false)
   }
 
@@ -145,7 +193,7 @@ export default function StoryViewer() {
   const groupStories = currentGroup?.stories || []
 
   return <div className="status-viewer-layer" role="dialog" aria-modal="true" aria-label="Status viewer" onClick={event => { if (event.target === event.currentTarget) closeViewer() }}>
-    <section className={`status-viewer ${story?.mediaType === 'text' ? 'text-status-viewer' : ''}`} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={() => { pointerStart.current = null; setPaused(false) }}>
+    <section className={`status-viewer ${story?.mediaType === 'text' ? 'text-status-viewer' : ''}`} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={cancelPress} onContextMenu={event => event.preventDefault()}>
       <div className="status-progress-track" aria-label={`Status ${viewer.index + 1} of ${groupStories.length}`}>
         {groupStories.map((item, index) => <span className={`status-progress ${index < viewer.index ? 'complete' : index === viewer.index ? 'current' : ''} ${paused ? 'paused' : ''}`} key={item.id} style={{ '--status-duration': `${STORY_DURATION}ms`, '--video-progress': `${videoProgress}%` }}><i/></span>)}
       </div>
@@ -156,13 +204,14 @@ export default function StoryViewer() {
 
       {story ? <>
         <div className={`status-media ${story.mediaType === 'text' ? 'text-status-media' : ''}`}>
-          {story.mediaType === 'video' ? <video src={story.mediaUrl} autoPlay playsInline preload="metadata" onTimeUpdate={event => { const duration = event.currentTarget.duration; if (duration) setVideoProgress(event.currentTarget.currentTime / duration * 100) }} onEnded={() => moveViewer(1)} onPause={() => setPaused(true)} onPlay={() => setPaused(false)}/> : story.mediaType === 'image' ? <img src={story.mediaUrl} alt={story.caption || `${story.user.username}'s status`} draggable="false"/> : <div className="status-text-card"><span className="status-text-mark">“</span><p>{story.text}</p></div>}
+          {story.mediaType === 'video' ? <video ref={videoRef} key={story.id} src={story.mediaUrl} playsInline preload="auto" onCanPlay={() => setMediaReady(true)} onTimeUpdate={event => { const duration = event.currentTarget.duration; if (duration) setVideoProgress(event.currentTarget.currentTime / duration * 100) }} onEnded={() => moveViewer(1)} onWaiting={() => setMediaReady(false)} onPlaying={() => setMediaReady(true)} onError={() => setError('Unable to load this video status.')}/> : story.mediaType === 'image' ? <img src={story.mediaUrl} alt={story.caption || `${story.user.username}'s status`} draggable="false" onLoad={() => setMediaReady(true)} onError={() => setError('Unable to load this image status.')}/> : <div className="status-text-card"><span className="status-text-mark">“</span><p>{story.text}</p></div>}
         </div>
+        {story.mediaType !== 'text' && !mediaReady && <div className="status-loading-state" role="status">Loading media…</div>}
         {story.caption && <p className="status-caption">{story.caption}</p>}
 
         {!isOwner && <div className="status-interaction-area">
           <div className="status-quick-reactions" aria-label="React to this status">{reactions.map(({ emoji, Icon, label }) => <button type="button" key={emoji} aria-label={label} onClick={() => react(emoji)}>{Icon ? <Icon size={20} fill={emoji === '❤️' ? 'currentColor' : 'none'}/> : <span>{emoji}</span>}</button>)}</div>
-          {story.canReply && <form className="status-reply-form" onSubmit={sendComment}><input value={comment} onChange={event => setComment(event.target.value)} placeholder={`Reply to ${story.user.username}…`} maxLength={5000} aria-label={`Reply to ${story.user.username}`}/><button type="submit" aria-label="Send reply" disabled={!comment.trim()}><Send size={18}/></button></form>}
+          {story.canReply && <form className="status-reply-form" onSubmit={sendComment}><input value={comment} onChange={event => setComment(event.target.value)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)} placeholder={`Reply to ${story.user.username}…`} maxLength={5000} aria-label={`Reply to ${story.user.username}`}/><button type="submit" aria-label="Send reply" disabled={!comment.trim()}><Send size={18}/></button></form>}
         </div>}
       </> : <div className="status-loading-state">{error || 'Loading status…'}</div>}
 
