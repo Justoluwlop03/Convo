@@ -3,6 +3,20 @@ import { deleteVoiceNote, uploadVoiceNote } from '../config/cloudinary.js'
 
 const maximumDuration = () => Math.max(1, Number(process.env.VOICE_MAX_DURATION_SECONDS) || 300)
 
+export function voiceNotePlaybackUrl(audioUrl) {
+  if (!audioUrl) return ''
+  try {
+    const url = new URL(audioUrl)
+    if (url.hostname !== 'res.cloudinary.com') return audioUrl
+    const path = url.pathname
+    if (!/\.(webm|mp4|m4a|ogg|wav|mp3|aac)$/i.test(path)) return audioUrl
+    url.pathname = path.replace(/\.(webm|mp4|m4a|ogg|wav|mp3|aac)$/i, '.mp3')
+    return url.toString()
+  } catch {
+    return audioUrl
+  }
+}
+
 function detectAudioFormat(buffer) {
   if (buffer.length >= 4 && buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return 'webm'
   if (buffer.length >= 4 && buffer.toString('ascii', 0, 4) === 'OggS') return 'ogg'

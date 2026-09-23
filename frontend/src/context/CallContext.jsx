@@ -46,8 +46,8 @@ export function CallProvider({ children }) {
 
   const addCandidate = useCallback(async candidate => {
     const connection = peerConnectionRef.current
-    if (!connection || !candidate) return
-    if (!connection.remoteDescription) {
+    if (!candidate) return
+    if (!connection || !connection.remoteDescription) {
       pendingCandidatesRef.current.push(candidate)
       return
     }

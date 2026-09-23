@@ -7,7 +7,7 @@ import { requireChatFriendship } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
 import { sendMessagePush } from '../utils/pushNotifications.js'
 import { uploadMessageImage, deleteMessageImage, deleteVoiceNote } from '../config/cloudinary.js'
-import { storeVoiceNote } from '../utils/voiceNotes.js'
+import { storeVoiceNote, voiceNotePlaybackUrl } from '../utils/voiceNotes.js'
 
 const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
 const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
@@ -24,7 +24,7 @@ export const messageView = message => {
     text: message.deletedAt ? 'This message was deleted' : message.text,
     type: message.deletedAt ? 'text' : message.type || (message.audioUrl ? 'voice' : message.imageUrl ? 'image' : 'text'),
     imageUrl: message.deletedAt ? '' : message.imageUrl || '',
-    audioUrl: message.deletedAt ? '' : message.audioUrl || '',
+    audioUrl: message.deletedAt ? '' : voiceNotePlaybackUrl(message.audioUrl || ''),
     duration: message.deletedAt ? 0 : Number(message.duration) || 0,
     deleted: Boolean(message.deletedAt),
     editedAt: message.editedAt,
