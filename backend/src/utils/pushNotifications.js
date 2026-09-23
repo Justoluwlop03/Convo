@@ -43,7 +43,6 @@ async function sendPush(userId, { title, text, privateText = 'You have a new not
     })
     const subscriptions = await PushSubscription.find({ user: userId })
     if (!subscriptions.length) {
-      console.info('Web Push has no subscription for the recipient', { notificationId })
       return
     }
     await Promise.all(subscriptions.map(async subscription => {

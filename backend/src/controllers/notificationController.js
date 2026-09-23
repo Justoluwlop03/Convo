@@ -10,7 +10,7 @@ export function getPushConfiguration(req, res) { res.json(pushConfiguration()) }
 export async function savePushSubscription(req, res) {
   const input = subscriptionInput.safeParse(req.body)
   if (!input.success) throw httpError(400, 'Invalid push subscription')
-  await PushSubscription.findOneAndUpdate({ endpoint: input.data.endpoint }, { user: req.user._id, ...input.data }, { upsert: true, new: true, setDefaultsOnInsert: true })
+  await PushSubscription.findOneAndUpdate({ endpoint: input.data.endpoint }, { user: req.user._id, ...input.data }, { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true })
   res.status(201).json({ ok: true })
 }
 

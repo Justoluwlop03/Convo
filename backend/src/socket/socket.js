@@ -243,7 +243,7 @@ export function configureSocket(io) {
       const message = await Message.findOneAndUpdate(
         { _id: messageId, chat: chat._id, sender: { $ne: userId } },
         { $set: { deliveredAt: new Date() } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       if (!message) return
       io.to(userRoomFor(message.sender.toString())).emit('message_status', {

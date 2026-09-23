@@ -40,6 +40,7 @@ export default function StoryViewer() {
   const pointerStart = useRef(null)
   const videoRef = useRef(null)
   const pressedVideo = useRef(null)
+  const durationTimer = useRef({ storyId: null, remaining: STORY_DURATION, startedAt: null })
   const currentGroup = viewer?.groups[viewer.groupIndex]
   const selected = currentGroup?.stories[viewer?.index]
   const isOwner = story?.isOwner === true
@@ -94,9 +95,26 @@ export default function StoryViewer() {
 
   useEffect(() => {
     if (!story || paused || showViewers || confirmingDelete || story.mediaType === 'video' || story.mediaType !== 'text' && !mediaReady) return undefined
-    const timer = window.setTimeout(() => moveViewer(1), STORY_DURATION)
-    return () => window.clearTimeout(timer)
-  }, [confirmingDelete, isOwner, mediaReady, moveViewer, paused, showViewers, story, viewer?.index, viewer?.groupIndex])
+    const timerState = durationTimer.current
+    if (timerState.storyId !== story.id) {
+      timerState.storyId = story.id
+      timerState.remaining = STORY_DURATION
+    }
+    const startedAt = performance.now()
+    timerState.startedAt = startedAt
+    const timer = window.setTimeout(() => {
+      timerState.remaining = 0
+      timerState.startedAt = null
+      moveViewer(1)
+    }, timerState.remaining)
+    return () => {
+      window.clearTimeout(timer)
+      if (timerState.startedAt !== null) {
+        timerState.remaining = Math.max(0, timerState.remaining - (performance.now() - timerState.startedAt))
+        timerState.startedAt = null
+      }
+    }
+  }, [confirmingDelete, mediaReady, moveViewer, paused, showViewers, story?.id, story?.mediaType])
 
   useEffect(() => {
     const onKeyDown = event => {
@@ -195,7 +213,7 @@ export default function StoryViewer() {
   return <div className="status-viewer-layer" role="dialog" aria-modal="true" aria-label="Status viewer" onClick={event => { if (event.target === event.currentTarget) closeViewer() }}>
     <section className={`status-viewer ${story?.mediaType === 'text' ? 'text-status-viewer' : ''}`} onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={cancelPress} onContextMenu={event => event.preventDefault()}>
       <div className="status-progress-track" aria-label={`Status ${viewer.index + 1} of ${groupStories.length}`}>
-        {groupStories.map((item, index) => <span className={`status-progress ${index < viewer.index ? 'complete' : index === viewer.index ? 'current' : ''} ${paused ? 'paused' : ''}`} key={item.id} style={{ '--status-duration': `${STORY_DURATION}ms`, '--video-progress': `${videoProgress}%` }}><i/></span>)}
+        {groupStories.map((item, index) => <span className={`status-progress ${index < viewer.index ? 'complete' : index === viewer.index ? `current ${story?.mediaType === 'video' ? 'video' : ''}` : ''} ${paused ? 'paused' : ''}`} key={item.id} style={{ '--status-duration': `${STORY_DURATION}ms`, '--video-progress': `${videoProgress}%` }}><i/></span>)}
       </div>
       <header className="status-viewer-header">
         {story && <Link className="status-profile-link" to={`/profile/${story.user.id}`} aria-label={`View ${story.user.username}'s profile`}><UserAvatar user={story.user} alt=""/><span><strong>{story.user.username}{isOwner ? ' · You' : ''}</strong><small>{story.timeAgo}</small></span></Link>}
