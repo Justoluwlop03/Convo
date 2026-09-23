@@ -20,7 +20,8 @@ export default function DeleteChatModal({ name, onClose, onDelete }) {
 
   return (
     <div className="group-modal-layer" role="presentation" onClick={() => !busy && onClose()}>
-      <section className="group-modal" role="dialog" aria-modal="true" aria-labelledby="delete-chat-title" onClick={event => event.stopPropagation()}>
+      <section className="group-modal chat-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-chat-title" onClick={event => event.stopPropagation()}>
+        <div className="chat-delete-icon"><Trash2 size={20}/></div>
         <div className="group-modal-heading">
           <div><h2 id="delete-chat-title">Delete conversation?</h2><p>This cannot be undone.</p></div>
           <button type="button" className="icon-button" aria-label="Close" onClick={onClose} disabled={busy}><X size={18} /></button>

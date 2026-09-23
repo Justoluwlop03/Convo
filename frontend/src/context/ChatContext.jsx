@@ -123,6 +123,16 @@ export function ChatProvider({ children }) {
             if (chatId) socket.emit(chats.find(chat => chat.id === chatId)?.type === 'group' ? 'join_group' : 'join_chat', chats.find(chat => chat.id === chatId)?.type === 'group' ? { groupId: chatId } : { chatId })
             flushOutbox().catch(() => {})
         })
+        socket.on('user_online', ({ userId }) => {
+            setChats(current => current.map(chat => chat.type !== 'group' && chat.participant.id === userId
+                ? { ...chat, participant: { ...chat.participant, online: true } }
+                : chat))
+        })
+        socket.on('user_offline', ({ userId, lastSeen }) => {
+            setChats(current => current.map(chat => chat.type !== 'group' && chat.participant.id === userId
+                ? { ...chat, participant: { ...chat.participant, online: false, lastSeen } }
+                : chat))
+        })
         socket.on('message_received', ({ message }) => {
             const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
             updateMessages(message.chatId, (messages) => messages.some((item) => item.id === normalized.id) ? messages : [...messages, normalized])
@@ -312,17 +322,16 @@ export function ChatProvider({ children }) {
     }
 
     const editMessage = async (messageId, text) => {
-        if (!user?.id) return null
         const updated = await chatService.editMessage(messageId, text, user.id)
-        updateMessages(updated.chatId, (messages) => messages.map((message) => message.id === updated.id ? { ...updated, isOwn: true } : message))
+        updateMessages(updated.chatId, messages => messages.map(message => message.id === updated.id ? { ...updated, isOwn: true } : message))
         return updated
     }
 
-    const deleteMessage = async (messageId) => {
-        const message = activeMessages.find((item) => item.id === messageId)
+    const deleteMessage = async messageId => {
+        const message = activeMessages.find(item => item.id === messageId)
         if (!message) return
         await chatService.deleteMessage(messageId)
-        updateMessages(message.chatId, (messages) => messages.map((item) => item.id === messageId ? { ...item, text: 'This message was deleted', deleted: true, deletedAt: new Date().toISOString() } : item))
+        updateMessages(message.chatId, messages => messages.map(item => item.id === messageId ? { ...item, text: 'This message was deleted', deleted: true, deletedAt: new Date().toISOString() } : item))
     }
 
     const deleteChat = async (chatId) => {

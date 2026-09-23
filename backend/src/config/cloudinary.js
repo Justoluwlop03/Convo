@@ -51,12 +51,13 @@ export function uploadGroupAvatar(buffer) {
 export function uploadStoryMedia(buffer, mediaType) {
     requireConfiguration()
     return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/stories', resource_type: mediaType }, (error, result) => error ? reject(error) : resolve(result))
+        const resourceType = mediaType === 'video' ? 'video' : 'image'
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/statuses', resource_type: resourceType }, (error, result) => error ? reject(error) : resolve(result))
         stream.end(buffer)
     })
 }
 
 export function deleteStoryMedia(publicId, mediaType) {
-    requireConfiguration()
-    return cloudinary.uploader.destroy(publicId, { resource_type: mediaType, invalidate: true })
+    if (!publicId || !isConfigured()) return Promise.resolve()
+    return cloudinary.uploader.destroy(publicId, { resource_type: mediaType === 'video' ? 'video' : 'image', invalidate: true })
 }

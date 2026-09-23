@@ -50,11 +50,11 @@ export default function App() {
   return (
     <AuthProvider>
       <ChatProvider>
-        <CallProvider>
-          <StoryProvider>
+        <StoryProvider>
+          <CallProvider>
             <AppShell />
-          </StoryProvider>
-        </CallProvider>
+          </CallProvider>
+        </StoryProvider>
       </ChatProvider>
     </AuthProvider>
   )

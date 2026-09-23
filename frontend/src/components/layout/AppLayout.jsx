@@ -7,8 +7,8 @@ import UserAvatar from '../users/UserAvatar'
 import InstallConvoButton from '../pwa/InstallConvoButton'
 import NotificationSettingsModal from '../pwa/NotificationSettingsModal'
 import AudioCallOverlay from '../call/AudioCallOverlay'
-import StoryViewer from '../stories/StoryViewer'
 import PwaStatus from '../pwa/PwaStatus'
+import StoryViewer from '../stories/StoryViewer'
 
 export default function AppLayout() {
     const { user, logout } = useAuth()
@@ -147,8 +147,8 @@ export default function AppLayout() {
             />
             {showNotificationSettings && <NotificationSettingsModal onClose={() => setShowNotificationSettings(false)} />}
             <PwaStatus />
-            <AudioCallOverlay />
             <StoryViewer />
+            <AudioCallOverlay />
         </div>
     )
 }

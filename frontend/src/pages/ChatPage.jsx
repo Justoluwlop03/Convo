@@ -66,7 +66,7 @@ export default function ChatPage() {
                         <span>New group</span>
                     </button>
                 </div>
-                <StoriesBar />
+                <StoriesBar compact />
                 <ChatList chats={chats} activeChatId={activeChatId} onSelect={handleSelectChat} />
             </section>
 
@@ -96,7 +96,7 @@ export default function ChatPage() {
                                 <ArrowLeft size={20} />
                             </button>
                             <button type="button" className="chat-user profile-link-button" onClick={() => selectedChat.type === 'group' ? setShowGroupInfo(true) : navigate(`/profile/${selectedChat.participant.id}`)}>
-                                <UserAvatar user={selectedChat.type === 'group' ? selectedChat : selectedChat.participant} className="large" alt={`${conversationTitle}'s profile`} />
+                                <UserAvatar user={selectedChat.type === 'group' ? selectedChat : selectedChat.participant} className="large" alt={`${conversationTitle}'s profile`} showOnlineStatus={selectedChat.type !== 'group' && selectedChat.participant.online} />
                                 <div>
                                     <h2>{conversationTitle}</h2>
                                     <span className={selectedChat.type === 'group' ? 'status' : selectedChat.participant.online ? 'status online' : 'status'}>
@@ -118,7 +118,7 @@ export default function ChatPage() {
                                 <div className="empty-state wide">Start the conversation by saying hello.</div>
                             ) : (
                                 activeMessages.map((message) => (
-                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} />
+                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply={selectedChat.type !== 'group'} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} />
                                 ))
                             )}
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}

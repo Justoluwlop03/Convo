@@ -7,12 +7,14 @@ const reactionSchema = new mongoose.Schema({
 
 const storySchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  mediaUrl: { type: String, required: true },
-  mediaPublicId: { type: String, required: true, select: false },
-  mediaType: { type: String, enum: ['image', 'video'], required: true },
+  mediaUrl: { type: String, default: '' },
+  mediaPublicId: { type: String, default: '', select: false },
+  mediaType: { type: String, enum: ['image', 'video', 'text'], required: true },
+  text: { type: String, trim: true, maxlength: 1000, default: '' },
   caption: { type: String, trim: true, maxlength: 280, default: '' },
   visibility: { type: String, enum: ['friends', 'public'], default: 'friends', required: true },
-  expiresAt: { type: Date, required: true, index: true },
+  expiresAt: { type: Date, required: true },
+  deletedAt: { type: Date, default: null },
   reactions: { type: [reactionSchema], default: [] },
 }, { timestamps: true })
 

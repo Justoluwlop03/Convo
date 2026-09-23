@@ -59,6 +59,12 @@ export const chatService = {
         return normalizeMessage(data.message, currentUserId)
     },
 
+    async editMessage(messageId, text, currentUserId) {
+        const { data } = await api.patch(`/messages/${messageId}`, { text })
+        return normalizeMessage(data.message, currentUserId)
+    },
+    async deleteMessage(messageId) { await api.delete(`/messages/${messageId}`) },
+
     async getGroupMessages(groupId, currentUserId) { const { data } = await api.get(`/groups/${groupId}/messages`); return data.messages.map((message) => normalizeMessage(message, currentUserId)) },
     async createGroup({ name, memberIds, avatar }, currentUserId) { const form = new FormData(); form.append('name', name); form.append('memberIds', JSON.stringify(memberIds)); if (avatar) form.append('avatar', avatar); const { data } = await api.post('/groups', form); return normalizeChat(data.group, currentUserId) },
     async updateGroup(groupId, payload, currentUserId) { const form = new FormData(); if (payload.name) form.append('name', payload.name); if (payload.avatar) form.append('avatar', payload.avatar); const { data } = await api.patch(`/groups/${groupId}`, form); return normalizeChat(data.group, currentUserId) },
@@ -69,12 +75,4 @@ export const chatService = {
     async deleteGroup(groupId) { await api.delete(`/groups/${groupId}`) },
     async sendGroupMessage(groupId, text, currentUserId) { const { data } = await api.post(`/groups/${groupId}/messages`, { text }); return normalizeMessage(data.message, currentUserId) },
 
-    async editMessage(messageId, text, currentUserId) {
-        const { data } = await api.patch(`/messages/${messageId}`, { text })
-        return normalizeMessage(data.message, currentUserId)
-    },
-
-    async deleteMessage(messageId) {
-        await api.delete(`/messages/${messageId}`)
-    },
 }

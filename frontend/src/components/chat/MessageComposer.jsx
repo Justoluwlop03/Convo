@@ -45,7 +45,7 @@ export default function MessageComposer({ onSend, onTypingStart, onTypingStop, r
 
     return (
         <form className="composer" onSubmit={handleSubmit}>
-            {replyTo && <div className="composer-reply"><div><strong>Replying to {replyTo.sender?.username || 'message'}</strong><span>{replyTo.text}</span></div><button type="button" onClick={onCancelReply} aria-label="Cancel reply"><X size={15} /></button></div>}
+            {replyTo && <div className="composer-reply"><div><strong>Replying to {replyTo.sender?.username || 'message'}</strong><span>{replyTo.text}</span></div><button type="button" onClick={onCancelReply} aria-label="Cancel reply"><X size={15}/></button></div>}
             <textarea
                 value={value}
                 onChange={handleChange}
