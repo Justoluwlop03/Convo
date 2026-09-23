@@ -9,7 +9,8 @@ import ChatPage from './pages/ChatPage'
 import ProfilePage from './pages/ProfilePage'
 import SearchPage from './pages/SearchPage'
 import FriendRequestsPage from './pages/FriendRequestsPage'
-import PwaStatus from './components/pwa/PwaStatus'
+import { CallProvider } from './context/CallContext'
+import { StoryProvider } from './context/StoryContext'
 import './App.css'
 
 function AppShell() {
@@ -49,8 +50,11 @@ export default function App() {
   return (
     <AuthProvider>
       <ChatProvider>
-        <PwaStatus />
-        <AppShell />
+        <CallProvider>
+          <StoryProvider>
+            <AppShell />
+          </StoryProvider>
+        </CallProvider>
       </ChatProvider>
     </AuthProvider>
   )

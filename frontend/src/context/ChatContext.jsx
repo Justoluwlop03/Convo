@@ -38,6 +38,7 @@ export function ChatProvider({ children }) {
     const [typingUsersByChat, setTypingUsersByChat] = useState({})
     const [unreadTotal, setUnreadTotal] = useState(0)
     const [notificationSettings, setNotificationSettings] = useState({ alertsEnabled: true, showPreview: true, mutedConversationIds: [] })
+    const [socket, setSocket] = useState(null)
     const socketRef = useRef(null)
     const activeChatIdRef = useRef(null)
     const messageStatusByIdRef = useRef({})
@@ -116,6 +117,7 @@ export function ChatProvider({ children }) {
         const socketUrl = import.meta.env.VITE_SOCKET_URL || apiUrl.replace(/\/api\/?$/, '')
         const socket = io(socketUrl, { auth: { token } })
         socketRef.current = socket
+        setSocket(socket)
         socket.on('connect', () => {
             const chatId = activeChatIdRef.current
             if (chatId) socket.emit(chats.find(chat => chat.id === chatId)?.type === 'group' ? 'join_group' : 'join_chat', chats.find(chat => chat.id === chatId)?.type === 'group' ? { groupId: chatId } : { chatId })
@@ -212,7 +214,7 @@ export function ChatProvider({ children }) {
             typingTimeoutsRef.current[groupId] = setTimeout(() => setTypingUsersByChat(current => ({ ...current, [groupId]: null })), 3500)
         })
         socket.on('group_typing_stopped', ({ userId, groupId }) => { clearTimeout(typingTimeoutsRef.current[groupId]); setTypingUsersByChat(current => current[groupId] === userId ? { ...current, [groupId]: null } : current) })
-        return () => { Object.values(typingTimeoutsRef.current).forEach(clearTimeout); typingTimeoutsRef.current = {}; socket.disconnect(); socketRef.current = null }
+        return () => { Object.values(typingTimeoutsRef.current).forEach(clearTimeout); typingTimeoutsRef.current = {}; socket.disconnect(); socketRef.current = null; setSocket(null) }
     }, [flushOutbox, persistChats, refreshUnreadTotal, token, updateMessages, user?.id])
 
     useEffect(() => { if (isOnline) flushOutbox().catch(() => {}) }, [flushOutbox, isOnline])
@@ -345,7 +347,7 @@ export function ChatProvider({ children }) {
 
     const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
     const updateNotifications = async settings => { const next = await notificationSettingsService.update(settings); setNotificationSettings(next); return next }
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal])
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

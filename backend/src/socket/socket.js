@@ -10,6 +10,9 @@ import { unreadMessageFilter } from '../utils/unreadMessages.js'
 import { sendMessagePush } from '../utils/pushNotifications.js'
 
 const onlineSockets = new Map()
+const activeCalls = new Map()
+const callByUser = new Map()
+const CALL_TIMEOUT_MS = 35_000
 const roomFor = chatId => `chat:${chatId}`
 const userRoomFor = userId => `user:${userId}`
 const groupRoomFor = groupId => `group:${groupId}`
@@ -26,6 +29,29 @@ async function canUseChat(chat, userId) {
 
 async function canUseGroup(groupId, userId) {
   return mongoose.isValidObjectId(groupId) && Boolean(await Group.exists({ _id: groupId, members: userId }))
+}
+
+function callParticipant(user) {
+  return { id: user._id.toString(), username: user.username, avatar: user.avatar || '' }
+}
+
+function callForUser(userId) {
+  const callId = callByUser.get(userId)
+  return callId ? activeCalls.get(callId) : null
+}
+
+function clearCall(callId) {
+  const call = activeCalls.get(callId)
+  if (!call) return null
+  clearTimeout(call.timeout)
+  activeCalls.delete(callId)
+  callByUser.delete(call.callerId)
+  callByUser.delete(call.receiverId)
+  return call
+}
+
+function validSignal(value) {
+  return value && typeof value === 'object' && JSON.stringify(value).length <= 100_000
 }
 
 export function configureSocket(io) {
@@ -119,6 +145,97 @@ export function configureSocket(io) {
       if (await canUseGroup(groupId, userId)) socket.to(groupRoomFor(groupId)).emit('group_typing_stopped', { userId, groupId })
     })
 
+    socket.on('call:initiate', async ({ chatId } = {}, acknowledge) => {
+      try {
+        if (callForUser(userId)) throw new Error('You are already in a call')
+        if (!mongoose.isValidObjectId(chatId)) throw new Error('Invalid conversation')
+        const chat = await Chat.findById(chatId).populate('participants', '-passwordHash')
+        if (!(await canUseChat(chat, userId))) throw new Error('You can only call accepted friends')
+        const receiver = chat.participants.find(participant => participant._id.toString() !== userId)
+        if (!receiver) throw new Error('Call recipient not found')
+        if (callForUser(receiver._id.toString())) {
+          acknowledge?.({ error: 'The recipient is busy' })
+          return socket.emit('call:busy', { chatId })
+        }
+        if (!onlineSockets.get(receiver._id.toString())?.size) {
+          acknowledge?.({ error: 'The recipient is offline' })
+          return socket.emit('call:timeout', { chatId, reason: 'The recipient is offline' })
+        }
+        const callId = crypto.randomUUID()
+        const call = { id: callId, chatId, callerId: userId, receiverId: receiver._id.toString(), status: 'ringing', timeout: null }
+        call.timeout = setTimeout(() => {
+          const expired = clearCall(callId)
+          if (!expired || expired.status !== 'ringing') return
+          io.to(userRoomFor(expired.callerId)).emit('call:timeout', { callId, reason: 'No answer' })
+          io.to(userRoomFor(expired.receiverId)).emit('call:end', { callId, reason: 'missed' })
+        }, CALL_TIMEOUT_MS)
+        activeCalls.set(callId, call)
+        callByUser.set(userId, callId)
+        callByUser.set(receiver._id.toString(), callId)
+        io.to(userRoomFor(receiver._id.toString())).emit('call:incoming', { callId, chatId, caller: callParticipant(socket.user) })
+        acknowledge?.({ ok: true, callId })
+      } catch (error) {
+        acknowledge?.({ error: error.message })
+      }
+    })
+
+    socket.on('call:accept', ({ callId } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || call.receiverId !== userId || call.status !== 'ringing') return acknowledge?.({ error: 'This call is no longer available' })
+      clearTimeout(call.timeout)
+      call.status = 'accepted'
+      call.timeout = setTimeout(() => {
+        const expired = clearCall(callId)
+        if (!expired) return
+        io.to(userRoomFor(expired.callerId)).emit('call:timeout', { callId, reason: 'Unable to connect the call' })
+        io.to(userRoomFor(expired.receiverId)).emit('call:timeout', { callId, reason: 'Unable to connect the call' })
+      }, CALL_TIMEOUT_MS)
+      io.to(userRoomFor(call.callerId)).emit('call:accept', { callId })
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('call:reject', ({ callId } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || call.receiverId !== userId) return acknowledge?.({ error: 'This call is no longer available' })
+      clearCall(callId)
+      io.to(userRoomFor(call.callerId)).emit('call:reject', { callId, reason: 'Call declined' })
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('call:offer', ({ callId, offer } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || call.callerId !== userId || call.status !== 'accepted' || !validSignal(offer)) return acknowledge?.({ error: 'Invalid call offer' })
+      io.to(userRoomFor(call.receiverId)).emit('call:offer', { callId, offer })
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('call:answer', ({ callId, answer } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || call.receiverId !== userId || call.status !== 'accepted' || !validSignal(answer)) return acknowledge?.({ error: 'Invalid call answer' })
+      clearTimeout(call.timeout)
+      call.timeout = null
+      call.status = 'connected'
+      io.to(userRoomFor(call.callerId)).emit('call:answer', { callId, answer })
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('call:ice-candidate', ({ callId, candidate } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || ![call.callerId, call.receiverId].includes(userId) || !['accepted', 'connected'].includes(call.status) || !validSignal(candidate)) return acknowledge?.({ error: 'Invalid ICE candidate' })
+      const recipientId = call.callerId === userId ? call.receiverId : call.callerId
+      io.to(userRoomFor(recipientId)).emit('call:ice-candidate', { callId, candidate })
+      acknowledge?.({ ok: true })
+    })
+
+    socket.on('call:end', ({ callId } = {}, acknowledge) => {
+      const call = activeCalls.get(callId)
+      if (!call || ![call.callerId, call.receiverId].includes(userId)) return acknowledge?.({ error: 'This call is no longer available' })
+      clearCall(callId)
+      const recipientId = call.callerId === userId ? call.receiverId : call.callerId
+      io.to(userRoomFor(recipientId)).emit('call:end', { callId, reason: 'ended' })
+      acknowledge?.({ ok: true })
+    })
+
     socket.on('message_delivered', async ({ messageId, chatId } = {}) => {
       if (!mongoose.isValidObjectId(messageId) || !mongoose.isValidObjectId(chatId)) return
       const chat = await Chat.findOne({ _id: chatId, participants: userId })
@@ -163,6 +280,12 @@ export function configureSocket(io) {
       activeSockets?.delete(socket.id)
       if (activeSockets?.size) return
       onlineSockets.delete(userId)
+      const activeCall = callForUser(userId)
+      if (activeCall) {
+        clearCall(activeCall.id)
+        const recipientId = activeCall.callerId === userId ? activeCall.receiverId : activeCall.callerId
+        io.to(userRoomFor(recipientId)).emit('call:end', { callId: activeCall.id, reason: 'The other caller disconnected' })
+      }
       const lastSeen = new Date()
       await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen })
       socket.broadcast.emit('user_offline', { userId, lastSeen })

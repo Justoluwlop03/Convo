@@ -117,7 +117,7 @@ export default function ProfilePage() {
                 {!isOwnProfile && <button type="button" className="ghost-button profile-back" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Back</button>}
                 <div className="profile-cover" />
                 <div className="profile-header social-profile-header">
-                    <UserAvatar user={profile} className="profile-avatar" alt={`${profile?.username || 'User'}'s profile`} />
+                    <UserAvatar user={profile} className="profile-avatar" alt={`${profile?.username || 'User'}'s profile`} showOnlineStatus />
                     <div>
                         <h2>{profile?.username || 'User'}</h2>
                         <p>{profile?.online ? 'Online now' : 'Offline'}</p>

@@ -66,6 +66,7 @@ export const chatService = {
     async removeGroupMember(groupId, userId) { await api.delete(`/groups/${groupId}/members/${userId}`) },
     async setGroupLock(groupId, locked) { const { data } = await api.patch(`/groups/${groupId}/lock`, { locked }); return normalizeChat(data.group) },
     async leaveGroup(groupId) { await api.post(`/groups/${groupId}/leave`) },
+    async deleteGroup(groupId) { await api.delete(`/groups/${groupId}`) },
     async sendGroupMessage(groupId, text, currentUserId) { const { data } = await api.post(`/groups/${groupId}/messages`, { text }); return normalizeMessage(data.message, currentUserId) },
 
     async editMessage(messageId, text, currentUserId) {

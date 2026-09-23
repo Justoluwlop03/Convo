@@ -6,6 +6,9 @@ import MobileSidebar from './MobileSidebar'
 import UserAvatar from '../users/UserAvatar'
 import InstallConvoButton from '../pwa/InstallConvoButton'
 import NotificationSettingsModal from '../pwa/NotificationSettingsModal'
+import AudioCallOverlay from '../call/AudioCallOverlay'
+import StoryViewer from '../stories/StoryViewer'
+import PwaStatus from '../pwa/PwaStatus'
 
 export default function AppLayout() {
     const { user, logout } = useAuth()
@@ -143,6 +146,9 @@ export default function AppLayout() {
                 onToggleTheme={toggleTheme}
             />
             {showNotificationSettings && <NotificationSettingsModal onClose={() => setShowNotificationSettings(false)} />}
+            <PwaStatus />
+            <AudioCallOverlay />
+            <StoryViewer />
         </div>
     )
 }

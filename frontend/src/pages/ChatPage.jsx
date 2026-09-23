@@ -12,10 +12,13 @@ import CreateGroupModal from '../components/chat/CreateGroupModal'
 import GroupInfoModal from '../components/chat/GroupInfoModal'
 import DeleteChatModal from '../components/chat/DeleteChatModal'
 import { useAuth } from '../context/AuthContext'
+import { useCall } from '../context/CallContext'
+import StoriesBar from '../components/stories/StoriesBar'
 
 export default function ChatPage() {
     const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const { user } = useAuth()
+    const { call, startCall } = useCall()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
     const [replyingTo, setReplyingTo] = useState(null)
     const [creatingGroup, setCreatingGroup] = useState(false)
@@ -63,6 +66,7 @@ export default function ChatPage() {
                         <span>New group</span>
                     </button>
                 </div>
+                <StoriesBar />
                 <ChatList chats={chats} activeChatId={activeChatId} onSelect={handleSelectChat} />
             </section>
 
@@ -72,8 +76,15 @@ export default function ChatPage() {
                         <span>Messages</span>
                         <h2>Chats</h2>
                     </div>
-                    <span>{chats.length}</span>
+                    <div className="mobile-chat-list-actions">
+                        <button type="button" className="ghost-button new-chat-button" aria-label="Create a group" onClick={() => setCreatingGroup(true)}>
+                            <Plus size={16} aria-hidden="true" />
+                            <span>New group</span>
+                        </button>
+                        <span>{chats.length}</span>
+                    </div>
                 </div>
+                <StoriesBar />
                 <ChatList chats={chats} activeChatId={activeChatId} onSelect={handleSelectChat} />
             </section>
 
@@ -95,7 +106,7 @@ export default function ChatPage() {
                             </button>
 
                             <div className="chat-actions">
-                                <button type="button" className="icon-button"><PhoneCall size={16} /></button>
+                                {selectedChat.type !== 'group' && <button type="button" className="icon-button" aria-label={`Call ${conversationTitle}`} disabled={call.status !== 'idle'} onClick={() => startCall(selectedChat)}><PhoneCall size={16} /></button>}
                                 <button type="button" className="icon-button"><Video size={16} /></button>
                                 <button type="button" className="icon-button"><MoreHorizontal size={16} /></button>
                                 {selectedChat.type !== 'group' && <button type="button" className="icon-button" aria-label="Delete conversation" onClick={() => setShowDeleteChat(true)}><Trash2 size={16} /></button>}

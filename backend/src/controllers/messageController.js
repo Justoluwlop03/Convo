@@ -28,6 +28,7 @@ export const messageView = message => {
       deleted: Boolean(message.replyTo.deletedAt),
       sender: message.replyTo.sender?.toPublicJSON?.() || null,
     } : null,
+    story: message.story ? { id: message.story._id?.toString?.() || message.story.toString(), thumbnailUrl: message.story.mediaUrl, mediaType: message.story.mediaType, caption: message.story.caption, user: message.story.user?.toProfileJSON?.() || null } : null,
     read: Boolean(readAt),
     deliveredAt,
     readAt,
@@ -40,6 +41,7 @@ export const messageView = message => {
 const messagePopulate = [
   { path: 'sender', select: '-passwordHash' },
   { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } },
+  { path: 'story', populate: { path: 'user', select: '-passwordHash' } },
 ]
 
 function emitToMembers(req, chat, event, payload) {

@@ -47,3 +47,16 @@ export function uploadGroupAvatar(buffer) {
         stream.end(buffer)
     })
 }
+
+export function uploadStoryMedia(buffer, mediaType) {
+    requireConfiguration()
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/stories', resource_type: mediaType }, (error, result) => error ? reject(error) : resolve(result))
+        stream.end(buffer)
+    })
+}
+
+export function deleteStoryMedia(publicId, mediaType) {
+    requireConfiguration()
+    return cloudinary.uploader.destroy(publicId, { resource_type: mediaType, invalidate: true })
+}
