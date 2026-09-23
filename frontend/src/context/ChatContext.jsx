@@ -321,6 +321,38 @@ export function ChatProvider({ children }) {
         return pending
     }
 
+    const sendImageMessage = useCallback(async (image, caption = '', replyTo = null) => {
+        if (!activeChatId || !user?.id) throw new Error('Choose a conversation before sending an image.')
+        if (!isOnline) throw new Error('Connect to the internet before sending an image.')
+        const message = selectedChat?.type === 'group'
+            ? await chatService.sendGroupImageMessage(activeChatId, image, caption, user.id)
+            : await chatService.sendImageMessage(activeChatId, image, caption, user.id, replyTo?.id || null)
+        const normalized = { ...message, isOwn: true }
+        updateMessages(activeChatId, current => [...current, normalized])
+        setChats(current => {
+            const next = current.map(chat => chat.id === activeChatId ? { ...chat, lastMessage: caption.trim() || 'Photo', updatedAt: normalized.timestamp } : chat)
+            persistChats(next)
+            return next
+        })
+        return normalized
+    }, [activeChatId, isOnline, persistChats, selectedChat?.type, updateMessages, user?.id])
+
+    const sendVoiceMessage = useCallback(async (blob, mimeType, replyTo = null) => {
+        if (!activeChatId || !user?.id) throw new Error('Choose a conversation before sending a voice note.')
+        if (!isOnline) throw new Error('Connect to the internet before sending a voice note.')
+        const message = selectedChat?.type === 'group'
+            ? await chatService.sendGroupVoiceMessage(activeChatId, blob, mimeType, user.id)
+            : await chatService.sendVoiceMessage(activeChatId, blob, mimeType, user.id, replyTo?.id || null)
+        const normalized = { ...message, isOwn: true }
+        updateMessages(activeChatId, current => [...current, normalized])
+        setChats(current => {
+            const next = current.map(chat => chat.id === activeChatId ? { ...chat, lastMessage: 'Voice message', updatedAt: normalized.timestamp } : chat)
+            persistChats(next)
+            return next
+        })
+        return normalized
+    }, [activeChatId, isOnline, persistChats, selectedChat?.type, updateMessages, user?.id])
+
     const editMessage = async (messageId, text) => {
         const updated = await chatService.editMessage(messageId, text, user.id)
         updateMessages(updated.chatId, messages => messages.map(message => message.id === updated.id ? { ...updated, isOwn: true } : message))
@@ -356,7 +388,7 @@ export function ChatProvider({ children }) {
 
     const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
     const updateNotifications = async settings => { const next = await notificationSettingsService.update(settings); setNotificationSettings(next); return next }
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal])
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, sendImageMessage, sendVoiceMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal, sendImageMessage, sendVoiceMessage])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

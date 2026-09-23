@@ -17,13 +17,17 @@ const roomFor = chatId => `chat:${chatId}`
 const userRoomFor = userId => `user:${userId}`
 const groupRoomFor = groupId => `group:${groupId}`
 
+function participantId(participant) {
+  return (participant?._id ?? participant)?.toString()
+}
+
 function isMember(chat, userId) {
-  return chat?.participants.some(participant => participant.toString() === userId.toString())
+  return chat?.participants.some(participant => participantId(participant) === userId.toString())
 }
 
 async function canUseChat(chat, userId) {
   if (!isMember(chat, userId)) return false
-  const otherUserId = chat.participants.find(participant => participant.toString() !== userId.toString())
+  const otherUserId = chat.participants.map(participantId).find(id => id !== userId.toString())
   return Boolean(otherUserId && await areFriends(userId, otherUserId))
 }
 

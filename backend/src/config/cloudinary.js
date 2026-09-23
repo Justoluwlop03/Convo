@@ -48,6 +48,32 @@ export function uploadGroupAvatar(buffer) {
     })
 }
 
+export function uploadMessageImage(buffer) {
+    requireConfiguration()
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/private-messages', resource_type: 'image' }, (error, result) => error ? reject(error) : resolve(result))
+        stream.end(buffer)
+    })
+}
+
+export function deleteMessageImage(publicId) {
+    if (!publicId || !isConfigured()) return Promise.resolve()
+    return cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true })
+}
+
+export function uploadVoiceNote(buffer) {
+    requireConfiguration()
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/voice-notes', resource_type: 'video', media_metadata: true }, (error, result) => error ? reject(error) : resolve(result))
+        stream.end(buffer)
+    })
+}
+
+export function deleteVoiceNote(publicId) {
+    if (!publicId || !isConfigured()) return Promise.resolve()
+    return cloudinary.uploader.destroy(publicId, { resource_type: 'video', invalidate: true })
+}
+
 export function uploadStoryMedia(buffer, mediaType) {
     requireConfiguration()
     return new Promise((resolve, reject) => {

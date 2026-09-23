@@ -6,6 +6,7 @@ import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship, requireFriends } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
 import { unreadTotalFor } from '../utils/unreadTotal.js'
+import { deleteMessageImage, deleteVoiceNote } from '../config/cloudinary.js'
 
 const chatView = (chat, unreadCount = 0) => ({
   id: chat._id.toString(),
@@ -69,6 +70,8 @@ export async function deleteChat(req, res) {
   requireId(req.params.id)
   const chat = await Chat.findOne({ _id: req.params.id, participants: req.user._id })
   if (!chat) throw httpError(404, 'Chat not found')
+  const mediaMessages = await Message.find({ chat: chat._id, $or: [{ imagePublicId: { $ne: '' } }, { audioPublicId: { $ne: '' } }] }).select('+imagePublicId +audioPublicId')
+  await Promise.all(mediaMessages.map(message => Promise.all([deleteMessageImage(message.imagePublicId).catch(() => {}), deleteVoiceNote(message.audioPublicId).catch(() => {})])))
   await Message.deleteMany({ chat: chat._id })
   await chat.deleteOne()
   chat.participants

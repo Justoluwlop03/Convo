@@ -16,7 +16,7 @@ import { useCall } from '../context/CallContext'
 import StoriesBar from '../components/stories/StoriesBar'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, sendImageMessage, sendVoiceMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const { user } = useAuth()
     const { call, startCall } = useCall()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
@@ -124,7 +124,7 @@ export default function ChatPage() {
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}
                         </div>
 
-                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} disabled={groupIsLockedForMember} disabledMessage="This group is locked. Only admins can send messages." />
+                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onSendImage={async (image, caption, replyTo) => { await sendImageMessage(image, caption, replyTo); setReplyingTo(null) }} onSendVoice={async (blob, mimeType, replyTo) => { await sendVoiceMessage(blob, mimeType, replyTo); setReplyingTo(null) }} allowImages onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} disabled={groupIsLockedForMember} disabledMessage="This group is locked. Only admins can send messages." />
                     </>
                 ) : (
                     <div className="empty-chat-shell">

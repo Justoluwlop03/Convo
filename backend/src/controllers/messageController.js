@@ -6,6 +6,8 @@ import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
 import { sendMessagePush } from '../utils/pushNotifications.js'
+import { uploadMessageImage, deleteMessageImage, deleteVoiceNote } from '../config/cloudinary.js'
+import { storeVoiceNote } from '../utils/voiceNotes.js'
 
 const messageInput = z.object({ chatId: z.string(), text: z.string().trim().min(1).max(5000), replyTo: z.string().optional().nullable() })
 const editInput = z.object({ text: z.string().trim().min(1).max(5000) })
@@ -20,6 +22,10 @@ export const messageView = message => {
     conversationType: message.group ? 'group' : 'private',
     sender: message.sender.toPublicJSON(),
     text: message.deletedAt ? 'This message was deleted' : message.text,
+    type: message.deletedAt ? 'text' : message.type || (message.audioUrl ? 'voice' : message.imageUrl ? 'image' : 'text'),
+    imageUrl: message.deletedAt ? '' : message.imageUrl || '',
+    audioUrl: message.deletedAt ? '' : message.audioUrl || '',
+    duration: message.deletedAt ? 0 : Number(message.duration) || 0,
     deleted: Boolean(message.deletedAt),
     editedAt: message.editedAt,
     replyTo: message.replyTo ? {
@@ -100,6 +106,69 @@ export async function createMessage(req, res) {
   res.status(201).json({ message: view })
 }
 
+export async function createImageMessage(req, res) {
+  if (!req.file) throw httpError(400, 'Choose an image to send')
+  const chat = await memberChat(req.params.chatId, req.user._id)
+  const caption = String(req.body.caption || '').trim()
+  if (caption.length > 5000) throw httpError(400, 'Caption must be 5000 characters or fewer')
+  let replyTo = null
+  if (req.body.replyTo) {
+    if (!mongoose.isValidObjectId(req.body.replyTo)) throw httpError(400, 'Invalid reply message')
+    replyTo = await Message.findOne({ _id: req.body.replyTo, chat: chat._id })
+    if (!replyTo) throw httpError(404, 'Reply message not found')
+  }
+
+  const uploaded = await uploadMessageImage(req.file.buffer)
+  let message
+  try {
+    message = await Message.create({
+      chat: chat._id,
+      sender: req.user._id,
+      text: caption || 'Photo',
+      type: 'image',
+      imageUrl: uploaded.secure_url,
+      imagePublicId: uploaded.public_id,
+      replyTo: replyTo?._id || null,
+    })
+    await Chat.findByIdAndUpdate(chat._id, { lastMessage: message._id })
+  } catch (error) {
+    await deleteMessageImage(uploaded.public_id).catch(() => {})
+    throw error
+  }
+
+  const view = messageView(await message.populate(messagePopulate))
+  emitToMembers(req, chat, 'message_received', { message: view })
+  const recipientId = chat.participants.find(participant => participant.toString() !== req.user._id.toString())?.toString()
+  if (recipientId) sendMessagePush(recipientId, { conversationId: chat._id.toString(), title: view.sender.username, text: caption || 'Sent a photo', messageId: view.id }).catch(() => {})
+  res.status(201).json({ message: view })
+}
+
+export async function createVoiceMessage(req, res) {
+  const chat = await memberChat(req.params.chatId, req.user._id)
+  let replyTo = null
+  if (req.body.replyTo) {
+    if (!mongoose.isValidObjectId(req.body.replyTo)) throw httpError(400, 'Invalid reply message')
+    replyTo = await Message.findOne({ _id: req.body.replyTo, chat: chat._id })
+    if (!replyTo) throw httpError(404, 'Reply message not found')
+  }
+
+  const stored = await storeVoiceNote(req.file)
+  let message
+  try {
+    message = await Message.create({ chat: chat._id, sender: req.user._id, text: 'Voice message', type: 'voice', ...stored, replyTo: replyTo?._id || null })
+    await Chat.findByIdAndUpdate(chat._id, { lastMessage: message._id })
+  } catch (error) {
+    await deleteVoiceNote(stored.audioPublicId).catch(() => {})
+    throw error
+  }
+
+  const view = messageView(await message.populate(messagePopulate))
+  emitToMembers(req, chat, 'message_received', { message: view })
+  const recipientId = chat.participants.find(participant => participant.toString() !== req.user._id.toString())?.toString()
+  if (recipientId) sendMessagePush(recipientId, { conversationId: chat._id.toString(), title: view.sender.username, text: 'Voice message', messageId: view.id }).catch(() => {})
+  res.status(201).json({ message: view })
+}
+
 export async function editMessage(req, res) {
   const input = editInput.safeParse(req.body)
   if (!input.success) throw httpError(400, input.error.issues[0].message)
@@ -128,13 +197,21 @@ export async function markRead(req, res) {
 }
 
 export async function deleteMessage(req, res) {
-  const message = await Message.findOne({ _id: req.params.id, sender: req.user._id, deletedAt: null })
+  const message = await Message.findOne({ _id: req.params.id, sender: req.user._id, deletedAt: null }).select('+imagePublicId +audioPublicId')
   if (!message) throw httpError(404, 'Message not found')
   const chat = await memberChat(message.chat, req.user._id)
   // Keep the required schema field valid while messageView hides the original content.
   message.text = 'This message was deleted'
   message.deletedAt = new Date()
+  const imagePublicId = message.imagePublicId
+  const audioPublicId = message.audioPublicId
+  message.imageUrl = ''
+  message.imagePublicId = ''
+  message.audioUrl = ''
+  message.audioPublicId = ''
   await message.save()
+  await deleteMessageImage(imagePublicId).catch(() => {})
+  await deleteVoiceNote(audioPublicId).catch(() => {})
   const populated = await message.populate(messagePopulate)
   emitToMembers(req, chat, 'message_deleted', { message: messageView(populated) })
   res.status(204).end()

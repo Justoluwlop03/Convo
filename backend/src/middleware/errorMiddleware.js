@@ -4,7 +4,7 @@ export function notFound(req, res) {
 
 export function errorHandler(error, req, res, next) {
   if (res.headersSent) return next(error)
-  const status = error.statusCode || (error.name === 'ValidationError' ? 400 : 500)
+  const status = error.statusCode || (error.name === 'ValidationError' ? 400 : error.name === 'MulterError' ? (error.code === 'LIMIT_FILE_SIZE' ? 413 : 400) : 500)
   if (status >= 500) console.error(error)
   res.status(status).json({ message: status >= 500 ? 'Internal server error' : error.message })
 }

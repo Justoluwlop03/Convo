@@ -59,6 +59,24 @@ export const chatService = {
         return normalizeMessage(data.message, currentUserId)
     },
 
+    async sendImageMessage(chatId, image, caption, currentUserId, replyTo = null) {
+        const form = new FormData()
+        form.append('image', image)
+        if (caption) form.append('caption', caption)
+        if (replyTo) form.append('replyTo', replyTo)
+        const { data } = await api.post(`/messages/${chatId}/images`, form)
+        return normalizeMessage(data.message, currentUserId)
+    },
+
+    async sendVoiceMessage(chatId, blob, mimeType, currentUserId, replyTo = null) {
+        const form = new FormData()
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mpeg') ? 'mp3' : 'webm'
+        form.append('audio', blob, `voice-note.${extension}`)
+        if (replyTo) form.append('replyTo', replyTo)
+        const { data } = await api.post(`/messages/${chatId}/voice`, form)
+        return normalizeMessage(data.message, currentUserId)
+    },
+
     async editMessage(messageId, text, currentUserId) {
         const { data } = await api.patch(`/messages/${messageId}`, { text })
         return normalizeMessage(data.message, currentUserId)
@@ -66,6 +84,20 @@ export const chatService = {
     async deleteMessage(messageId) { await api.delete(`/messages/${messageId}`) },
 
     async getGroupMessages(groupId, currentUserId) { const { data } = await api.get(`/groups/${groupId}/messages`); return data.messages.map((message) => normalizeMessage(message, currentUserId)) },
+    async sendGroupImageMessage(groupId, image, caption, currentUserId) {
+        const form = new FormData()
+        form.append('image', image)
+        if (caption) form.append('caption', caption)
+        const { data } = await api.post(`/groups/${groupId}/images`, form)
+        return normalizeMessage(data.message, currentUserId)
+    },
+    async sendGroupVoiceMessage(groupId, blob, mimeType, currentUserId) {
+        const form = new FormData()
+        const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mpeg') ? 'mp3' : 'webm'
+        form.append('audio', blob, `voice-note.${extension}`)
+        const { data } = await api.post(`/groups/${groupId}/voice`, form)
+        return normalizeMessage(data.message, currentUserId)
+    },
     async createGroup({ name, memberIds, avatar }, currentUserId) { const form = new FormData(); form.append('name', name); form.append('memberIds', JSON.stringify(memberIds)); if (avatar) form.append('avatar', avatar); const { data } = await api.post('/groups', form); return normalizeChat(data.group, currentUserId) },
     async updateGroup(groupId, payload, currentUserId) { const form = new FormData(); if (payload.name) form.append('name', payload.name); if (payload.avatar) form.append('avatar', payload.avatar); const { data } = await api.patch(`/groups/${groupId}`, form); return normalizeChat(data.group, currentUserId) },
     async addGroupMembers(groupId, memberIds, currentUserId) { const { data } = await api.post(`/groups/${groupId}/members`, { memberIds }); return normalizeChat(data.group, currentUserId) },

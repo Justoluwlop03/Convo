@@ -2,6 +2,7 @@ import { AlertCircle, Check, CheckCheck, Clock3, Copy, MoreHorizontal, Pencil, R
 import { useEffect, useRef, useState } from 'react'
 import UserAvatar from '../users/UserAvatar'
 import { useStories } from '../../context/StoryContext'
+import VoiceMessage from './VoiceMessage'
 
 const emojiOptions = ['❤️', '😂', '👍', '😢', '😮']
 
@@ -77,7 +78,9 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
         <div className={`message-bubble ${isOwn ? 'own' : ''} ${message.deleted ? 'deleted' : ''}`}>
           {message.replyTo && <div className="message-reply-preview"><strong>{message.replyTo.sender?.username || 'Message'}</strong><span>{message.replyTo.text}</span></div>}
           {message.story && <button type="button" className="message-story-preview" disabled={message.story.expired} onClick={() => openStoryById(message.story.id)}><span>{message.story.expired ? 'Status expired' : 'Replied to a status'}</span>{!message.story.expired && (message.story.mediaType === 'text' ? <strong>{message.story.text || 'Text status'}</strong> : <img src={message.story.thumbnailUrl || message.story.mediaUrl} alt="Status preview" />)}</button>}
-          {editing ? <div className="message-edit-form"><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit() } }} rows={2} autoFocus maxLength={5000}/><div><button type="button" onClick={saveEdit} disabled={busy || !draft.trim()}>Save</button><button type="button" onClick={() => { setDraft(message.text); setEditing(false) }} disabled={busy}>Cancel</button></div></div> : <p>{message.deleted ? 'This message was deleted' : message.text}</p>}
+          {message.imageUrl && !message.deleted && <a className="message-image-link" href={message.imageUrl} target="_blank" rel="noreferrer"><img className="message-image" src={message.imageUrl} alt="Image shared in chat" loading="lazy"/></a>}
+          {message.type === 'voice' && !message.deleted && <VoiceMessage message={message}/>}
+          {editing ? <div className="message-edit-form"><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit() } }} rows={2} autoFocus maxLength={5000}/><div><button type="button" onClick={saveEdit} disabled={busy || !draft.trim()}>Save</button><button type="button" onClick={() => { setDraft(message.text); setEditing(false) }} disabled={busy}>Cancel</button></div></div> : message.deleted ? <p>This message was deleted</p> : message.type === 'voice' ? null : (message.text !== 'Photo' || !message.imageUrl) && <p>{message.text}</p>}
           <div className="message-meta"><span>{message.timestamp || 'now'}{message.editedAt && !message.deleted ? ' · edited' : ''}</span>{isOwn && <span className={`message-status ${message.status || 'sent'}`} aria-label={`Message ${message.status || 'sent'}`}>{statusIcon}</span>}</div>
         </div>
         {reaction && <span className="message-reaction" aria-label={`Reaction ${reaction}`}>{reaction}</span>}
@@ -88,7 +91,7 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
       {canReply && !message.deleted && <button type="button" role="menuitem" data-action="reply" onClick={() => { onReply?.(message); setMenu(null) }}><Reply size={16}/>Reply</button>}
       {!message.deleted && <button type="button" role="menuitem" data-action="react" onClick={() => setShowReactions(current => !current)}><SmilePlus size={16}/>React</button>}
       {showReactions && <div className="message-reaction-picker" aria-label="Choose a reaction">{emojiOptions.map(emoji => <button type="button" key={emoji} onClick={() => { setReaction(emoji); setShowReactions(false); setMenu(null) }} aria-label={`React ${emoji}`}>{emoji}</button>)}</div>}
-      {isOwn && canModify && !message.deleted && <button type="button" role="menuitem" data-action="edit" onClick={() => { setDraft(message.text); setEditing(true); setMenu(null) }}><Pencil size={16}/>Edit</button>}
+      {isOwn && canModify && !message.deleted && message.type !== 'voice' && <button type="button" role="menuitem" data-action="edit" onClick={() => { setDraft(message.text); setEditing(true); setMenu(null) }}><Pencil size={16}/>Edit</button>}
       {isOwn && canModify && !message.deleted && <button type="button" role="menuitem" data-action="delete" onClick={() => { setConfirmDelete(true); setMenu(null) }}><Trash2 size={16}/>Delete</button>}
       {!message.deleted && <button type="button" role="menuitem" data-action="copy" onClick={copyMessage}><Copy size={16}/>Copy</button>}
     </div>}
