@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, index: true, trim: true, minlength: 2, maxlength: 30 },
+  displayName: { type: String, default: '', trim: true, maxlength: 50 },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   passwordHash: { type: String, required: true, select: false },
   avatar: { type: String, default: '' },
@@ -23,11 +24,11 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {
-  return { id: this._id.toString(), username: this.username, email: this.email, avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen }
+  return { id: this._id.toString(), username: this.username, displayName: this.displayName || '', email: this.email, avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen }
 }
 
 userSchema.methods.toProfileJSON = function toProfileJSON() {
-  return { id: this._id.toString(), username: this.username, avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen, createdAt: this.createdAt }
+  return { id: this._id.toString(), username: this.username, displayName: this.displayName || '', avatar: this.avatar, bio: this.bio, about: this.about, online: this.isOnline, lastSeen: this.lastSeen, createdAt: this.createdAt }
 }
 
 export default mongoose.model('User', userSchema)

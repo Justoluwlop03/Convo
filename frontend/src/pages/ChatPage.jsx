@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Video, MoreHorizontal, PhoneCall, Plus, Trash2 } from 'lucide-react'
 import { useChat } from '../context/ChatContext'
@@ -16,7 +16,7 @@ import { useCall } from '../context/CallContext'
 import StoriesBar from '../components/stories/StoriesBar'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, tagGroupMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const { user } = useAuth()
     const { call, startCall } = useCall()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
@@ -25,6 +25,30 @@ export default function ChatPage() {
     const [showGroupInfo, setShowGroupInfo] = useState(false)
     const [showDeleteChat, setShowDeleteChat] = useState(false)
     const navigate = useNavigate()
+    const messageListRef = useRef(null)
+    const scrollStateRef = useRef({ chatId: null, lastMessageId: null, nearBottom: true })
+
+    useLayoutEffect(() => {
+        const chatId = selectedChat?.id ?? null
+        const latestMessage = activeMessages[activeMessages.length - 1]
+        const scrollState = scrollStateRef.current
+        const openedAnotherChat = scrollState.chatId !== chatId
+        const receivedNewMessage = latestMessage?.id && latestMessage.id !== scrollState.lastMessageId
+
+        if (openedAnotherChat) {
+            scrollState.chatId = chatId
+            scrollState.nearBottom = true
+        }
+
+        if (receivedNewMessage) scrollState.lastMessageId = latestMessage.id
+        else if (openedAnotherChat) scrollState.lastMessageId = latestMessage?.id ?? null
+
+        if (openedAnotherChat || (receivedNewMessage && (latestMessage.isOwn || scrollState.nearBottom))) {
+            const messageList = messageListRef.current
+            if (messageList) messageList.scrollTop = messageList.scrollHeight
+            scrollState.nearBottom = true
+        }
+    }, [activeMessages, selectedChat?.id])
 
     useEffect(() => {
         const handlePopState = () => setIsMobileChatOpen(false)
@@ -113,12 +137,19 @@ export default function ChatPage() {
                             </div>
                         </header>
 
-                        <div className="message-list">
+                        <div
+                            ref={messageListRef}
+                            className="message-list"
+                            onScroll={(event) => {
+                                const { scrollTop, scrollHeight, clientHeight } = event.currentTarget
+                                scrollStateRef.current.nearBottom = scrollHeight - scrollTop - clientHeight <= 120
+                            }}
+                        >
                             {activeMessages.length === 0 ? (
                                 <div className="empty-state wide">Start the conversation by saying hello.</div>
                             ) : (
                                 activeMessages.map((message) => (
-                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply={selectedChat.type !== 'group'} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} onSendSticker={sendSticker} />
+                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply canTag={selectedChat.type === 'group'} currentUserId={user?.id} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} onSendSticker={sendSticker} onTagMessage={tagGroupMessage} />
                                 ))
                             )}
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}

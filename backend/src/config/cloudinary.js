@@ -94,6 +94,20 @@ export function uploadStoryMedia(buffer, mediaType) {
     })
 }
 
+export function uploadPostMedia(buffer, mediaType) {
+    requireConfiguration()
+    const resourceType = mediaType === 'video' ? 'video' : 'image'
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream({ folder: 'convo/posts', resource_type: resourceType }, (error, result) => error ? reject(error) : resolve(result))
+        stream.end(buffer)
+    })
+}
+
+export function deletePostMedia(publicId, mediaType) {
+    if (!publicId || !isConfigured()) return Promise.resolve()
+    return cloudinary.uploader.destroy(publicId, { resource_type: mediaType === 'video' ? 'video' : 'image', invalidate: true })
+}
+
 export function deleteStoryMedia(publicId, mediaType) {
     if (!publicId || !isConfigured()) return Promise.resolve()
     return cloudinary.uploader.destroy(publicId, { resource_type: mediaType === 'video' ? 'video' : 'image', invalidate: true })

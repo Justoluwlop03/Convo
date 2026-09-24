@@ -15,6 +15,7 @@ const messageSchema = new mongoose.Schema({
   duration: { type: Number, default: 0 },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
   story: { type: mongoose.Schema.Types.ObjectId, ref: 'Story', default: null },
+  reactions: [{ _id: false, user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, emoji: { type: String, required: true } }],
   editedAt: { type: Date, default: null },
   deletedAt: { type: Date, default: null },
   read: { type: Boolean, default: false },

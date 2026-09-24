@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import { z } from 'zod'
 import Message from '../models/Message.js'
 import Chat from '../models/Chat.js'
+import Group from '../models/Group.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { requireChatFriendship } from '../utils/friendships.js'
 import { unreadMessageFilter } from '../utils/unreadMessages.js'
@@ -36,6 +37,10 @@ export const messageView = message => {
       deleted: Boolean(message.replyTo.deletedAt),
       sender: message.replyTo.sender?.toPublicJSON?.() || null,
     } : null,
+    reactions: (message.reactions || []).map(reaction => ({
+      user: reaction.user?.toPublicJSON?.() || { id: reaction.user?._id?.toString?.() || reaction.user?.toString?.() },
+      emoji: reaction.emoji,
+    })),
     story: message.story ? {
       id: message.story._id?.toString?.() || message.story.toString(),
       mediaType: message.story.mediaType,
@@ -60,7 +65,32 @@ const messagePopulate = [
   { path: 'sender', select: '-passwordHash' },
   { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } },
   { path: 'story', populate: { path: 'user', select: '-passwordHash' } },
+  { path: 'reactions.user', select: '-passwordHash' },
 ]
+
+const messageTagInput = z.object({ emoji: z.enum(['\u2764\uFE0F', '\u{1F602}', '\u{1F44D}', '\u{1F622}', '\u{1F62E}']) })
+
+export async function tagGroupMessage(req, res) {
+  const input = messageTagInput.safeParse(req.body)
+  if (!input.success) throw httpError(400, 'Choose a supported message tag')
+  if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'Message not found')
+
+  const message = await Message.findOne({ _id: req.params.id, group: { $ne: null }, deletedAt: null })
+  if (!message) throw httpError(404, 'Group message not found')
+  const group = await Group.findOne({ _id: message.group, members: req.user._id })
+  if (!group) throw httpError(403, 'Only group members can tag messages')
+
+  const existing = message.reactions.find(reaction => reaction.user.toString() === req.user._id.toString())
+  if (existing?.emoji === input.data.emoji) message.reactions = message.reactions.filter(reaction => reaction.user.toString() !== req.user._id.toString())
+  else if (existing) existing.emoji = input.data.emoji
+  else message.reactions.push({ user: req.user._id, emoji: input.data.emoji })
+
+  await message.save()
+  const view = messageView(await message.populate(messagePopulate))
+  const io = req.app.get('io')
+  group.members.forEach(member => io?.to(`user:${member.toString()}`).emit('message_tagged', { message: view }))
+  res.json({ message: view })
+}
 
 function emitToMembers(req, chat, event, payload) {
   const io = req.app.get('io')

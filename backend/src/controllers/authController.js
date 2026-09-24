@@ -14,6 +14,7 @@ const credentials = z.object({
 const registration = credentials.extend({ username: z.string().trim().min(2).max(30) })
 const profileUpdate = z.object({
   username: z.string().trim().min(2).max(30).optional(),
+  displayName: z.string().trim().max(50).optional(),
   bio: z.string().trim().max(160).optional(),
   about: z.string().trim().max(1000).optional(),
 })
@@ -58,6 +59,7 @@ export async function updateProfile(req, res) {
     req.user.username = input.username
   }
   if (input.bio !== undefined) req.user.bio = input.bio
+  if (input.displayName !== undefined) req.user.displayName = input.displayName
   if (input.about !== undefined) req.user.about = input.about
   await req.user.save()
   res.json({ user: req.user.toPublicJSON() })

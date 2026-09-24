@@ -199,6 +199,11 @@ export function ChatProvider({ children }) {
             const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
             updateMessages(message.chatId, (messages) => messages.map((item) => item.id === normalized.id ? normalized : item))
         })
+        socket.on('message_tagged', ({ message }) => {
+            const normalized = { ...message, senderId: message.sender?.id || message.sender, timestamp: new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), isOwn: (message.sender?.id || message.sender) === user.id }
+            const chatId = normalized.groupId || normalized.chatId
+            updateMessages(chatId, messages => messages.map(item => item.id === normalized.id ? normalized : item))
+        })
         socket.on('messages_read', ({ chatId, messageIds, readAt }) => {
             const ids = new Set(messageIds)
             messageIds.forEach((messageId) => { messageStatusByIdRef.current[messageId] = { status: 'read', read: true, readAt } })
@@ -293,7 +298,7 @@ export function ChatProvider({ children }) {
         if (!activeChatId || !text.trim() || !user?.id) return null
         const socket = socketRef.current
         if (selectedChat?.type === 'group') {
-            const message = await chatService.sendGroupMessage(activeChatId, text, user.id)
+            const message = await chatService.sendGroupMessage(activeChatId, text, user.id, replyTo?.id || null)
             const normalized = { ...message, isOwn: true }
             updateMessages(activeChatId, messages => [...messages, normalized])
             setChats(current => current.map(chat => chat.id === activeChatId ? { ...chat, lastMessage: normalized.text, updatedAt: normalized.timestamp } : chat))
@@ -325,7 +330,7 @@ export function ChatProvider({ children }) {
         if (!activeChatId || !user?.id) throw new Error('Choose a conversation before sending an image.')
         if (!isOnline) throw new Error('Connect to the internet before sending an image.')
         const message = selectedChat?.type === 'group'
-            ? await chatService.sendGroupImageMessage(activeChatId, image, caption, user.id)
+            ? await chatService.sendGroupImageMessage(activeChatId, image, caption, user.id, replyTo?.id || null)
             : await chatService.sendImageMessage(activeChatId, image, caption, user.id, replyTo?.id || null)
         const normalized = { ...message, isOwn: true }
         updateMessages(activeChatId, current => [...current, normalized])
@@ -341,7 +346,7 @@ export function ChatProvider({ children }) {
         if (!activeChatId || !user?.id) throw new Error('Choose a conversation before sending a voice note.')
         if (!isOnline) throw new Error('Connect to the internet before sending a voice note.')
         const message = selectedChat?.type === 'group'
-            ? await chatService.sendGroupVoiceMessage(activeChatId, blob, mimeType, user.id)
+            ? await chatService.sendGroupVoiceMessage(activeChatId, blob, mimeType, user.id, replyTo?.id || null)
             : await chatService.sendVoiceMessage(activeChatId, blob, mimeType, user.id, replyTo?.id || null)
         const normalized = { ...message, isOwn: true }
         updateMessages(activeChatId, current => [...current, normalized])
@@ -380,6 +385,13 @@ export function ChatProvider({ children }) {
         updateMessages(message.chatId, messages => messages.map(item => item.id === messageId ? { ...item, text: 'This message was deleted', deleted: true, deletedAt: new Date().toISOString() } : item))
     }
 
+    const tagGroupMessage = useCallback(async (messageId, emoji) => {
+        if (!user?.id) throw new Error('Sign in to tag a message.')
+        const tagged = await chatService.tagGroupMessage(messageId, emoji, user.id)
+        updateMessages(tagged.groupId, messages => messages.map(message => message.id === tagged.id ? tagged : message))
+        return tagged
+    }, [updateMessages, user?.id])
+
     const deleteChat = async (chatId) => {
         const chat = chats.find(item => item.id === chatId)
         if (!chat || chat.type === 'group') throw new Error('Only private conversations can be deleted here')
@@ -402,7 +414,7 @@ export function ChatProvider({ children }) {
 
     const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
     const updateNotifications = async settings => { const next = await notificationSettingsService.update(settings); setNotificationSettings(next); return next }
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal, sendImageMessage, sendVoiceMessage, sendSticker])
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, tagGroupMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal, sendImageMessage, sendVoiceMessage, sendSticker, tagGroupMessage])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

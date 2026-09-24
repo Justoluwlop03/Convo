@@ -14,6 +14,7 @@ import messageRoutes from './routes/messageRoutes.js'
 import groupRoutes from './routes/groupRoutes.js'
 import storyRoutes from './routes/storyRoutes.js'
 import stickerRoutes from './routes/stickerRoutes.js'
+import postRoutes from './routes/postRoutes.js'
 import { configureSocket } from './socket/socket.js'
 import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 import { configureCloudinary } from './config/cloudinary.js'
@@ -41,6 +42,7 @@ app.use('/api/messages', messageRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api/stories', storyRoutes)
 app.use('/api/stickers', stickerRoutes)
+app.use('/api/posts', postRoutes)
 app.use(notFound)
 app.use(errorHandler)
 configureSocket(io)

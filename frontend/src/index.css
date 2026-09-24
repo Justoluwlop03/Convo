@@ -1459,7 +1459,7 @@ button {
     right: 0;
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.2rem;
     padding: 0.45rem 0.25rem max(0.5rem, env(safe-area-inset-bottom));
     background: rgba(9, 20, 24, 0.96);

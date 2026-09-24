@@ -49,3 +49,14 @@ const statusUpload = multer({
 })
 
 export const storyUpload = statusUpload.single('media')
+
+const postUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024, files: 6 },
+    fileFilter: (_req, file, callback) => {
+        if (!statusMimeTypes.has(file.mimetype)) return callback(Object.assign(new Error('Posts support JPEG, PNG, WebP, GIF, MP4, WebM, and MOV media'), { statusCode: 400 }))
+        callback(null, true)
+    },
+})
+
+export const postMediaUpload = postUpload.array('media', 6)

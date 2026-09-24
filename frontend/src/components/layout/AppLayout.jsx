@@ -1,4 +1,4 @@
-import { Bell, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound } from 'lucide-react'
+import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -48,6 +48,7 @@ export default function AppLayout() {
                         <Search size={18} />
                         Find people
                     </NavLink>
+                    <NavLink to="/reels" className="nav-link"><Clapperboard size={18}/>Posts</NavLink>
                     <NavLink to="/requests" className="nav-link">
                         <UserPlus size={18} />
                         Friend requests
@@ -135,6 +136,7 @@ export default function AppLayout() {
                     <UserRound size={18} />
                     <span>Profile</span>
                 </NavLink>
+                <NavLink to="/reels" className="mobile-tab" aria-label="Posts"><Clapperboard size={18}/><span>Posts</span></NavLink>
             </nav>
 
             <MobileSidebar

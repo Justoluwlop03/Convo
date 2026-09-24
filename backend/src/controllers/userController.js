@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import { randomUUID } from 'node:crypto'
 import User from '../models/User.js'
+import Post from '../models/Post.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 import { sendFriendPush } from '../utils/pushNotifications.js'
 
@@ -68,7 +69,11 @@ export async function getUser(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'User not found')
   const user = await User.findById(req.params.id)
   if (!user) throw httpError(404, 'User not found')
-  res.json({ user: profileView(user, req.user) })
+  const [postsCount, likesSummary] = await Promise.all([
+    Post.countDocuments({ user: user._id }),
+    Post.aggregate([{ $match: { user: user._id } }, { $group: { _id: null, total: { $sum: '$likesCount' } } }]),
+  ])
+  res.json({ user: { ...profileView(user, req.user), stats: { posts: postsCount, friends: user.friends.length, likes: likesSummary[0]?.total || 0 } } })
 }
 
 export async function sendFriendRequest(req, res) {

@@ -36,6 +36,17 @@ async function requireFriendMembers(creatorId, memberIds) {
   return unique
 }
 async function unreadCount(groupId, userId) { return Message.countDocuments(unreadMessageFilter(userId, { group: groupId })) }
+async function groupReplyTo(groupId, replyToId) {
+  if (!replyToId) return null
+  id(replyToId)
+  const message = await Message.findOne({ _id: replyToId, group: groupId })
+  if (!message) throw httpError(404, 'Reply message not found in this group')
+  return message._id
+}
+const groupMessagePopulate = [
+  { path: 'sender', select: '-passwordHash' },
+  { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } },
+]
 async function deleteGroupMedia(groupId) {
   const mediaMessages = await Message.find({ group: groupId, $or: [{ imagePublicId: { $ne: '' } }, { audioPublicId: { $ne: '' } }] }).select('+imagePublicId +audioPublicId')
   await Promise.all(mediaMessages.map(message => Promise.all([deleteMessageImage(message.imagePublicId).catch(() => {}), deleteVoiceNote(message.audioPublicId).catch(() => {})])))
@@ -61,16 +72,17 @@ export async function removeMember(req, res) { const group = await memberGroup(r
 export async function addAdmin(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); requireCreator(group, req.user._id); id(req.params.userId); if (!includes(group.members, req.params.userId)) throw httpError(400, 'Admins must be group members'); if (!includes(group.admins, req.params.userId)) group.admins.push(req.params.userId); await group.save(); res.json({ group: groupView(await populated(Group.findById(group._id))) }) }
 export async function removeAdmin(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); requireCreator(group, req.user._id); id(req.params.userId); if (req.params.userId === group.creator._id.toString()) throw httpError(400, 'The group creator cannot be demoted'); if (!includes(group.admins, req.params.userId)) throw httpError(404, 'Admin not found'); if (group.admins.length === 1) throw httpError(400, 'A group must have an administrator'); group.admins = group.admins.filter(admin => admin.toString() !== req.params.userId); await group.save(); res.json({ group: groupView(await populated(Group.findById(group._id))) }) }
 export async function leaveGroup(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const userId = req.user._id.toString(); group.members = group.members.filter(member => member.toString() !== userId); group.admins = group.admins.filter(admin => admin.toString() !== userId); if (!group.members.length) { await deleteGroupMedia(group._id); await Message.deleteMany({ group: group._id }); await group.deleteOne(); return res.status(204).end() } if (!group.admins.length) group.admins = [group.members[0]]; if (group.creator._id.toString() === userId) group.creator = group.admins[0]; await group.save(); const view = groupView(await populated(Group.findById(group._id))); const io = req.app.get('io'); io?.to(`user:${userId}`).emit('group_removed', { groupId: group._id.toString() }); io?.to(`group:${group._id}`).emit('group_updated', { group: view }); res.json({ group: view }) }
-export async function getGroupMessages(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const messages = await Message.find({ group: group._id }).sort({ createdAt: 1 }).populate([{ path: 'sender', select: '-passwordHash' }, { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } }]); res.json({ messages: messages.map(messageView) }) }
+export async function getGroupMessages(req, res) { const group = await memberGroup(req.params.groupId, req.user._id); const messages = await Message.find({ group: group._id }).sort({ createdAt: 1 }).populate([{ path: 'sender', select: '-passwordHash' }, { path: 'replyTo', populate: { path: 'sender', select: '-passwordHash' } }, { path: 'reactions.user', select: '-passwordHash' }]); res.json({ messages: messages.map(messageView) }) }
 export async function createGroupMessage(req, res) {
   const group = await memberGroup(req.params.groupId, req.user._id)
   if (group.locked && !includes(group.admins, req.user._id)) throw httpError(403, 'This group is locked. Only admins can send messages.')
   const text = String(req.body.text || '').trim()
   if (!text || text.length > 5000) throw httpError(400, 'Message text is invalid')
+  const replyTo = await groupReplyTo(group._id, req.body.replyTo)
 
-  const message = await Message.create({ group: group._id, sender: req.user._id, text })
+  const message = await Message.create({ group: group._id, sender: req.user._id, text, replyTo })
   await Group.findByIdAndUpdate(group._id, { lastMessage: message._id, updatedAt: new Date() })
-  const view = messageView(await message.populate([{ path: 'sender', select: '-passwordHash' }]))
+  const view = messageView(await message.populate(groupMessagePopulate))
   const updatedGroup = await populated(Group.findById(group._id))
   const io = req.app.get('io')
 
@@ -92,18 +104,19 @@ export async function createGroupImageMessage(req, res) {
   if (!req.file) throw httpError(400, 'Choose an image to send')
   const caption = String(req.body.caption || '').trim()
   if (caption.length > 5000) throw httpError(400, 'Caption must be 5000 characters or fewer')
+  const replyTo = await groupReplyTo(group._id, req.body.replyTo)
 
   const uploaded = await uploadMessageImage(req.file.buffer)
   let message
   try {
-    message = await Message.create({ group: group._id, sender: req.user._id, text: caption || 'Photo', type: 'image', imageUrl: uploaded.secure_url, imagePublicId: uploaded.public_id })
+    message = await Message.create({ group: group._id, sender: req.user._id, text: caption || 'Photo', type: 'image', imageUrl: uploaded.secure_url, imagePublicId: uploaded.public_id, replyTo })
     await Group.findByIdAndUpdate(group._id, { lastMessage: message._id, updatedAt: new Date() })
   } catch (error) {
     await deleteMessageImage(uploaded.public_id).catch(() => {})
     throw error
   }
 
-  const view = messageView(await message.populate([{ path: 'sender', select: '-passwordHash' }]))
+  const view = messageView(await message.populate(groupMessagePopulate))
   const updatedGroup = await populated(Group.findById(group._id))
   const io = req.app.get('io')
   await Promise.all(updatedGroup.members
@@ -121,17 +134,18 @@ export async function createGroupImageMessage(req, res) {
 export async function createGroupVoiceMessage(req, res) {
   const group = await memberGroup(req.params.groupId, req.user._id)
   if (group.locked && !includes(group.admins, req.user._id)) throw httpError(403, 'This group is locked. Only admins can send messages.')
+  const replyTo = await groupReplyTo(group._id, req.body.replyTo)
   const stored = await storeVoiceNote(req.file)
   let message
   try {
-    message = await Message.create({ group: group._id, sender: req.user._id, text: 'Voice message', type: 'voice', ...stored })
+    message = await Message.create({ group: group._id, sender: req.user._id, text: 'Voice message', type: 'voice', ...stored, replyTo })
     await Group.findByIdAndUpdate(group._id, { lastMessage: message._id, updatedAt: new Date() })
   } catch (error) {
     await deleteVoiceNote(stored.audioPublicId).catch(() => {})
     throw error
   }
 
-  const view = messageView(await message.populate([{ path: 'sender', select: '-passwordHash' }]))
+  const view = messageView(await message.populate(groupMessagePopulate))
   const updatedGroup = await populated(Group.findById(group._id))
   const io = req.app.get('io')
   await Promise.all(updatedGroup.members

@@ -86,19 +86,22 @@ export const chatService = {
         return normalizeMessage(data.message, currentUserId)
     },
     async deleteMessage(messageId) { await api.delete(`/messages/${messageId}`) },
+    async tagGroupMessage(messageId, emoji, currentUserId) { const { data } = await api.post(`/messages/${messageId}/tag`, { emoji }); return normalizeMessage(data.message, currentUserId) },
 
     async getGroupMessages(groupId, currentUserId) { const { data } = await api.get(`/groups/${groupId}/messages`); return data.messages.map((message) => normalizeMessage(message, currentUserId)) },
-    async sendGroupImageMessage(groupId, image, caption, currentUserId) {
+    async sendGroupImageMessage(groupId, image, caption, currentUserId, replyTo = null) {
         const form = new FormData()
         form.append('image', image)
         if (caption) form.append('caption', caption)
+        if (replyTo) form.append('replyTo', replyTo)
         const { data } = await api.post(`/groups/${groupId}/images`, form)
         return normalizeMessage(data.message, currentUserId)
     },
-    async sendGroupVoiceMessage(groupId, blob, mimeType, currentUserId) {
+    async sendGroupVoiceMessage(groupId, blob, mimeType, currentUserId, replyTo = null) {
         const form = new FormData()
         const extension = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mpeg') ? 'mp3' : 'webm'
         form.append('audio', blob, `voice-note.${extension}`)
+        if (replyTo) form.append('replyTo', replyTo)
         const { data } = await api.post(`/groups/${groupId}/voice`, form)
         return normalizeMessage(data.message, currentUserId)
     },
@@ -109,6 +112,6 @@ export const chatService = {
     async setGroupLock(groupId, locked) { const { data } = await api.patch(`/groups/${groupId}/lock`, { locked }); return normalizeChat(data.group) },
     async leaveGroup(groupId) { await api.post(`/groups/${groupId}/leave`) },
     async deleteGroup(groupId) { await api.delete(`/groups/${groupId}`) },
-    async sendGroupMessage(groupId, text, currentUserId) { const { data } = await api.post(`/groups/${groupId}/messages`, { text }); return normalizeMessage(data.message, currentUserId) },
+    async sendGroupMessage(groupId, text, currentUserId, replyTo = null) { const { data } = await api.post(`/groups/${groupId}/messages`, { text, replyTo }); return normalizeMessage(data.message, currentUserId) },
 
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createImageMessage, createMessage, createVoiceMessage, deleteMessage, editMessage, getMessages, markRead } from '../controllers/messageController.js'
+import { createImageMessage, createMessage, createVoiceMessage, deleteMessage, editMessage, getMessages, markRead, tagGroupMessage } from '../controllers/messageController.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { privateMessageImageUpload, voiceNoteFileUpload } from '../middleware/uploadMiddleware.js'
 
@@ -11,5 +11,6 @@ router.post('/:chatId/images', privateMessageImageUpload, createImageMessage)
 router.post('/:chatId/voice', voiceNoteFileUpload, createVoiceMessage)
 router.patch('/:id', editMessage)
 router.patch('/:id/read', markRead)
+router.post('/:id/tag', tagGroupMessage)
 router.delete('/:id', deleteMessage)
 export default router
