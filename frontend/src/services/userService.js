@@ -24,6 +24,16 @@ export const userService = {
         return data.user
     },
 
+    async blockUser(userId) {
+        const { data } = await api.post(`/users/${userId}/block`)
+        return data.user
+    },
+
+    async unblockUser(userId) {
+        const { data } = await api.delete(`/users/${userId}/block`)
+        return data.user
+    },
+
     async getFriendRequests() {
         const { data } = await api.get('/users/friend-requests')
         return data.requests

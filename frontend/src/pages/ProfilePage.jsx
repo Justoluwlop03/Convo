@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Ellipsis, Eye, Grid3X3, Heart, ImagePlus, LogOut, MessageCircle, MessageSquare, Pencil, Play, Plus, Send, Share2, Trash2, UserPlus, X } from 'lucide-react'
+import { ArrowLeft, Ban, Check, ChevronLeft, ChevronRight, Ellipsis, Eye, Grid3X3, Heart, ImagePlus, LogOut, MessageCircle, MessageSquare, Pencil, Play, Plus, Send, Share2, Trash2, UserPlus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -59,6 +59,7 @@ export default function ProfilePage() {
     const [commentDraft, setCommentDraft] = useState('')
     const [commentBusy, setCommentBusy] = useState(false)
     const [moreOpen, setMoreOpen] = useState(false)
+    const [blockBusy, setBlockBusy] = useState(false)
     const [notice, setNotice] = useState('')
     previewsRef.current = postPreviews
 
@@ -338,6 +339,21 @@ export default function ProfilePage() {
         setMoreOpen(false)
     }
 
+    const toggleBlock = async () => {
+        if (!profile || blockBusy) return
+        setBlockBusy(true)
+        setError('')
+        try {
+            const updated = profile.blockedByMe ? await userService.unblockUser(profile.id) : await userService.blockUser(profile.id)
+            setProfile(current => ({ ...current, ...updated }))
+            setMoreOpen(false)
+            setNotice(updated.blockedByMe ? 'User blocked' : 'User unblocked')
+            window.setTimeout(() => setNotice(''), 2200)
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || 'Unable to update block settings.')
+        } finally { setBlockBusy(false) }
+    }
+
     useEffect(() => {
         const postId = new URLSearchParams(window.location.search).get('post')
         if (!postId || postsLoading) return
@@ -372,9 +388,10 @@ export default function ProfilePage() {
                         {profile.relationship === 'outgoing' && <button type="button" className="ghost-button" disabled>Request sent</button>}
                         {profile.relationship === 'incoming' && <><button type="button" className="primary-button" disabled={saving} onClick={() => updateRelationship(userService.acceptFriendRequest)}><Check size={16}/>Accept</button><button type="button" className="ghost-button" disabled={saving} onClick={() => updateRelationship(userService.declineFriendRequest)}>Decline</button></>}
                     </>}
-                    <div className="profile-more-wrap"><button type="button" className="profile-more-button" aria-label="More profile options" onClick={() => setMoreOpen(value => !value)}><Ellipsis size={19}/></button>{moreOpen && <div className="profile-more-menu"><button type="button" onClick={copyProfile}><Share2 size={15}/>Copy profile link</button>{isOwnProfile && <button type="button" onClick={logout}><LogOut size={15}/>Log out</button>}</div>}</div>
+                    <div className="profile-more-wrap"><button type="button" className="profile-more-button" aria-label="More profile options" onClick={() => setMoreOpen(value => !value)}><Ellipsis size={19}/></button>{moreOpen && <div className="profile-more-menu"><button type="button" onClick={copyProfile}><Share2 size={15}/>Copy profile link</button>{!isOwnProfile && <button type="button" onClick={toggleBlock} disabled={blockBusy}><Ban size={15}/>{blockBusy ? 'Updating…' : profile.blockedByMe ? 'Unblock user' : 'Block user'}</button>}{isOwnProfile && <button type="button" onClick={logout}><LogOut size={15}/>Log out</button>}</div>}</div>
                 </div>
             </div>
+            {profile.blockedMe && !profile.blockedByMe && <p className="inline-error profile-error">This user has blocked you. You can’t interact with this profile.</p>}
             <div className="profile-statistics" aria-label="Profile statistics">
                 <div><strong>{profile.stats?.posts ?? 0}</strong><span>Posts</span></div>
                 <button type="button" className="profile-friend-stat" onClick={() => navigate(`/friends/${profile.id}`)} aria-label={`View ${profile.stats?.friends ?? 0} friends`}><strong>{profile.stats?.friends ?? 0}</strong><span>Friends</span></button>
@@ -384,6 +401,7 @@ export default function ProfilePage() {
         </section>
 
         <section className="profile-posts-section">
+            {profile.blockedMe && !profile.blockedByMe ? <div className="profile-empty-posts"><div><Ban size={24}/><h2>Profile unavailable</h2><p>You can’t view this user’s posts.</p></div></div> : <>
             <nav className="profile-tabs" aria-label="Profile posts">
                 <button type="button" className={tab === 'posts' ? 'active' : ''} aria-selected={tab === 'posts'} onClick={() => setTab('posts')}><Grid3X3 size={16}/>Posts</button>
                 {isOwnProfile && <button type="button" className={tab === 'liked' ? 'active' : ''} aria-selected={tab === 'liked'} onClick={() => setTab('liked')}><Heart size={16}/>Liked</button>}
@@ -404,6 +422,7 @@ export default function ProfilePage() {
                 <span className="post-grid-engagement"><span><Heart size={17} fill="currentColor"/>{post.likesCount}</span><span><MessageSquare size={17} fill="currentColor"/>{post.commentsCount}</span></span>
             </button>)}</div> : <div className="profile-empty-posts"><div><Grid3X3 size={24}/><h2>{tab === 'liked' ? 'No liked posts yet' : isOwnProfile ? 'Your profile starts here' : 'No posts yet'}</h2><p>{tab === 'liked' ? 'Posts you like will appear here.' : isOwnProfile ? 'Share a photo, video, or thought with your friends.' : 'When this person shares a post, it will appear here.'}</p></div></div>}
             {hasMorePosts && !postsLoading && <button type="button" className="load-posts-button" onClick={() => loadPosts(page + 1, false)} disabled={loadingMorePosts}>{loadingMorePosts ? 'Loading…' : 'Load more posts'}</button>}
+            </>}
         </section>
 
         {editing && <div className="profile-modal-layer" onClick={() => !saving && setEditing(false)}><form className="profile-edit-modal" onSubmit={saveProfile} onClick={event => event.stopPropagation()}>

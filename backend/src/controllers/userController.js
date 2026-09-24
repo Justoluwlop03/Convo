@@ -16,7 +16,31 @@ function relationshipFor(currentUser, otherUserId) {
 }
 
 function profileView(user, currentUser) {
-  return { ...user.toProfileJSON(), relationship: relationshipFor(currentUser, user._id) }
+  const blockedByMe = (currentUser.blockedUsers || []).some(id => id.toString() === user._id.toString())
+  const blockedMe = (user.blockedUsers || []).some(id => id.toString() === currentUser._id.toString())
+  return { ...user.toProfileJSON(), relationship: blockedByMe || blockedMe ? 'blocked' : relationshipFor(currentUser, user._id), blockedByMe, blockedMe }
+}
+
+export async function blockUser(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'User not found')
+  if (req.params.id === req.user._id.toString()) throw httpError(400, 'You cannot block yourself')
+  const target = await User.findById(req.params.id)
+  if (!target) throw httpError(404, 'User not found')
+  await Promise.all([
+    User.findByIdAndUpdate(req.user._id, { $addToSet: { blockedUsers: target._id }, $pull: { friends: target._id, sentFriendRequests: target._id, receivedFriendRequests: target._id } }),
+    User.findByIdAndUpdate(target._id, { $pull: { friends: req.user._id, sentFriendRequests: req.user._id, receivedFriendRequests: req.user._id } }),
+  ])
+  const blocker = await User.findById(req.user._id)
+  res.json({ user: profileView(target, blocker) })
+}
+
+export async function unblockUser(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'User not found')
+  const target = await User.findById(req.params.id)
+  if (!target) throw httpError(404, 'User not found')
+  await User.findByIdAndUpdate(req.user._id, { $pull: { blockedUsers: target._id } })
+  const blocker = await User.findById(req.user._id)
+  res.json({ user: profileView(target, blocker) })
 }
 
 function notificationSettingsView(user) {
@@ -81,6 +105,7 @@ export async function sendFriendRequest(req, res) {
   if (req.params.id === req.user._id.toString()) throw httpError(400, 'You cannot add yourself')
   const recipient = await User.findById(req.params.id)
   if (!recipient) throw httpError(404, 'User not found')
+  if ((req.user.blockedUsers || []).some(id => id.toString() === recipient._id.toString()) || (recipient.blockedUsers || []).some(id => id.toString() === req.user._id.toString())) throw httpError(403, 'You cannot interact with this user')
   const relationship = relationshipFor(req.user, recipient._id)
   if (relationship === 'friends') throw httpError(409, 'You are already friends')
   if (relationship === 'outgoing') throw httpError(409, 'Friend request already sent')

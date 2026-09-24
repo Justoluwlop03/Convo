@@ -62,8 +62,15 @@ export async function createPost(req, res) {
 
 export async function listUserPosts(req, res) {
   if (!validId(req.params.userId)) throw httpError(404, 'User not found')
-  const profileUser = await User.findById(req.params.userId).select('_id')
+  const profileUser = await User.findById(req.params.userId).select('_id blockedUsers')
   if (!profileUser) throw httpError(404, 'User not found')
+  if (profileUser._id.toString() !== req.user._id.toString()) {
+    const [viewerBlocks, profileBlocks] = await Promise.all([
+      User.exists({ _id: req.user._id, blockedUsers: profileUser._id }),
+      User.exists({ _id: profileUser._id, blockedUsers: req.user._id }),
+    ])
+    if (viewerBlocks || profileBlocks) throw httpError(403, 'You cannot view this user’s posts')
+  }
   const { page, limit } = pagination(req.query)
   const likedTab = req.query.tab === 'liked'
   if (likedTab && profileUser._id.toString() !== req.user._id.toString()) throw httpError(403, 'Liked posts are only visible on your own profile')

@@ -2,7 +2,11 @@ import User from '../models/User.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 
 export async function areFriends(userId, otherUserId) {
-  return Boolean(await User.exists({ _id: userId, friends: otherUserId }))
+  const [friends, blocked] = await Promise.all([
+    User.exists({ _id: userId, friends: otherUserId }),
+    User.exists({ $or: [{ _id: userId, blockedUsers: otherUserId }, { _id: otherUserId, blockedUsers: userId }] }),
+  ])
+  return Boolean(friends && !blocked)
 }
 
 export async function requireFriends(userId, otherUserId) {
