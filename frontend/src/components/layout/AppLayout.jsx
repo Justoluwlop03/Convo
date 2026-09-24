@@ -1,4 +1,4 @@
-import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound } from 'lucide-react'
+import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -49,9 +49,10 @@ export default function AppLayout() {
                         Find people
                     </NavLink>
                     <NavLink to="/reels" className="nav-link"><Clapperboard size={18}/>Posts</NavLink>
+                    <NavLink to={`/friends/${user?.id}`} className="nav-link"><Users size={18}/>Friends</NavLink>
                     <NavLink to="/requests" className="nav-link">
                         <UserPlus size={18} />
-                        Friend requests
+                        People to add back
                     </NavLink>
                     <NavLink to="/profile" className="nav-link">
                         <UserRound size={18} />

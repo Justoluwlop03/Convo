@@ -1,7 +1,7 @@
 import api from './api'
 
 export const userService = {
-    async getFriends() { const { data } = await api.get('/users/friends'); return data.users },
+    async getFriends(userId) { const { data } = await api.get(userId ? `/users/${userId}/friends` : '/users/friends'); return data.users },
     async getRecommendedUsers() {
         const { data } = await api.get('/users/recommended')
         return data.users

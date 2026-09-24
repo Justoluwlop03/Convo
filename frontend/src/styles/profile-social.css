@@ -30,7 +30,10 @@
 .profile-more-menu button { display: flex; align-items: center; gap: .55rem; padding: .65rem .7rem; border: 0; border-radius: 8px; background: transparent; color: #dbeafe; text-align: left; cursor: pointer; }
 .profile-more-menu button:hover { background: rgba(59,130,246,.16); }
 .profile-statistics { display: flex; align-items: center; justify-content: center; gap: clamp(2.1rem, 10vw, 7rem); margin: .85rem auto .1rem; padding: .45rem 0 .15rem; }
-.profile-statistics div { display: grid; justify-items: center; gap: .12rem; min-width: 4rem; }
+.profile-statistics div,.profile-statistics .profile-friend-stat { display: grid; justify-items: center; gap: .12rem; min-width: 4rem; }
+.profile-statistics .profile-friend-stat { padding:0; border:0; background:transparent; color:inherit; font:inherit; cursor:pointer; }
+.profile-statistics .profile-friend-stat:hover strong { color:#67d7ff; }
+.profile-statistics .profile-friend-stat:focus-visible { border-radius:8px; outline:2px solid #38bdf8; outline-offset:4px; }
 .profile-statistics strong { color: #f8fbff; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 .profile-statistics span { color: #91a5c5; font-size: .75rem; }
 .profile-back { position: static; display: inline-flex; align-items: center; gap: .4rem; margin: 0 auto .5rem 0; border: 0; background: transparent; }
@@ -180,6 +183,7 @@
 .app-shell.theme-light .profile-more-menu button { color: #243a59; }
 .app-shell.theme-light .profile-photo-editor { border-color: rgba(37,99,235,.14); background: #f1f6ff; }
 .app-shell.theme-light .profile-photo-editor strong { color: #243a59; }
+.app-shell.theme-light .profile-statistics .profile-friend-stat:hover strong { color:#1676c5; }
 .app-shell.theme-light .post-confirm-dialog { border-color:rgba(100,116,139,.2); background:#fff; color:#1d2d46; box-shadow:0 28px 80px rgba(15,23,42,.24); }
 .app-shell.theme-light .post-confirm-dialog p { color:#5d6d84; }
 .app-shell.theme-light .post-detail-modal { border-color:rgba(100,116,139,.24); background:#fff; color:#1d2d46; box-shadow:0 30px 90px rgba(15,23,42,.28); }
@@ -239,7 +243,7 @@
 @media (max-width: 360px) {
   .social-profile-name h1 { font-size: 1.12rem; }
   .profile-statistics { gap: 1.4rem; }
-  .profile-statistics div { min-width: 3.6rem; }
+  .profile-statistics div,.profile-statistics .profile-friend-stat { min-width: 3.6rem; }
   .social-profile-actions .primary-button,.social-profile-actions .ghost-button { padding-inline: .55rem; font-size: .72rem; }
   .profile-tabs { gap: .65rem; }
 }

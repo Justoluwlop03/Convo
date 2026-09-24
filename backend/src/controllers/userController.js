@@ -117,6 +117,14 @@ export async function listFriends(req, res) {
   res.json({ users: users.map(user => profileView(user, req.user)) })
 }
 
+export async function listUserFriends(req, res) {
+  if (!mongoose.isValidObjectId(req.params.userId)) throw httpError(404, 'User not found')
+  const profile = await User.findById(req.params.userId).select('_id friends')
+  if (!profile) throw httpError(404, 'User not found')
+  const users = await User.find({ _id: { $in: profile.friends } }).sort({ username: 1 })
+  res.json({ users: users.map(user => profileView(user, req.user)) })
+}
+
 export async function acceptFriendRequest(req, res) {
   const sender = await requestUser(req)
   await Promise.all([

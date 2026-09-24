@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage'
 import SearchPage from './pages/SearchPage'
 import FriendRequestsPage from './pages/FriendRequestsPage'
 import ReelsPage from './pages/ReelsPage'
+import FriendsPage from './pages/FriendsPage'
 import { CallProvider } from './context/CallContext'
 import { StoryProvider } from './context/StoryContext'
 import './App.css'
@@ -38,6 +39,8 @@ function AppShell() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/reels" element={<ReelsPage />} />
           <Route path="/requests" element={<FriendRequestsPage />} />
+          <Route path="/add-back" element={<FriendRequestsPage />} />
+          <Route path="/friends/:userId" element={<FriendsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />
         </Route>

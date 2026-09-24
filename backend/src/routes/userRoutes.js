@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { acceptFriendRequest, declineFriendRequest, getNotificationSettings, getRecommendedUsers, getUser, listFriends, listFriendRequests, searchUsers, sendFriendRequest, updateNotificationSettings } from '../controllers/userController.js'
+import { acceptFriendRequest, declineFriendRequest, getNotificationSettings, getRecommendedUsers, getUser, listFriends, listFriendRequests, listUserFriends, searchUsers, sendFriendRequest, updateNotificationSettings } from '../controllers/userController.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { searchRateLimit } from '../middleware/rateLimitMiddleware.js'
 import { deletePushSubscription, getPushConfiguration, savePushSubscription } from '../controllers/notificationController.js'
@@ -10,6 +10,7 @@ router.get('/recommended', getRecommendedUsers)
 router.get('/search', searchRateLimit, searchUsers)
 router.get('/friend-requests', listFriendRequests)
 router.get('/friends', listFriends)
+router.get('/:userId/friends', listUserFriends)
 router.get('/notification-settings', getNotificationSettings)
 router.patch('/notification-settings', updateNotificationSettings)
 router.get('/push-configuration', getPushConfiguration)

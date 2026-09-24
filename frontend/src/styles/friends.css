@@ -1,0 +1,34 @@
+.friends-page-shell { width:100%; box-sizing:border-box; }
+.friends-page-card { display:grid; gap:1rem; }
+.friends-page-heading { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.8rem; min-width:0; }
+.friends-back-button,.add-back-link { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; width:max-content; text-decoration:none; white-space:nowrap; }
+.friends-title { display:flex; align-items:center; gap:.7rem; min-width:0; color:#9bdfff; }
+.friends-title>div { min-width:0; }
+.friends-title h1 { margin:0; color:#edf4ff; font-size:1.15rem; overflow-wrap:anywhere; }
+.friends-title p { margin:.2rem 0 0; color:#91a5c5; font-size:.78rem; }
+.friend-list-item { min-width:0; box-sizing:border-box; }
+.friend-list-identity { display:block; min-width:0; overflow:hidden; }
+.friend-list-identity strong,.friend-list-identity small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.friend-request-pending { color:#91a5c5; font-size:.74rem; white-space:nowrap; }
+.friends-empty { display:grid; justify-items:center; gap:.5rem; min-height:12rem; align-content:center; color:#8da3c3; text-align:center; }
+.friends-empty h2 { margin:0; color:#e8f1ff; font-size:1rem; }
+.friends-empty p { margin:0; font-size:.82rem; }
+.app-shell.theme-light .friends-title { color:#2563eb; }
+.app-shell.theme-light .friends-title h1,.app-shell.theme-light .friends-empty h2 { color:#15233c; }
+.app-shell.theme-light .friends-title p,.app-shell.theme-light .friends-empty { color:#647899; }
+.app-shell.theme-light .friend-request-pending { color:#60728e; }
+@media(max-width:640px) {
+  .friends-page-heading { grid-template-columns:auto minmax(0,1fr); }
+  .friends-title h1 { font-size:1rem; }
+  .add-back-link { grid-column:2; justify-self:start; }
+  .friend-list-item { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.45rem; }
+  .friend-list-item .search-result-profile { gap:.55rem; }
+  .friend-list-item .compact-action { padding:.45rem .55rem; font-size:.7rem; }
+}
+@media(max-width:360px) {
+  .friends-page-card { padding:.8rem; }
+  .friends-page-heading { gap:.45rem; }
+  .friends-back-button { padding:.45rem .5rem; font-size:.72rem; }
+  .friend-list-item .avatar { width:2.2rem; height:2.2rem; flex:0 0 2.2rem; }
+  .friend-list-item .compact-action { gap:.25rem; padding:.4rem; }
+}

@@ -377,7 +377,7 @@ export default function ProfilePage() {
             </div>
             <div className="profile-statistics" aria-label="Profile statistics">
                 <div><strong>{profile.stats?.posts ?? 0}</strong><span>Posts</span></div>
-                <div><strong>{profile.stats?.friends ?? 0}</strong><span>Friends</span></div>
+                <button type="button" className="profile-friend-stat" onClick={() => navigate(`/friends/${profile.id}`)} aria-label={`View ${profile.stats?.friends ?? 0} friends`}><strong>{profile.stats?.friends ?? 0}</strong><span>Friends</span></button>
                 <div><strong>{profile.stats?.likes ?? 0}</strong><span>Likes</span></div>
             </div>
             {error && <p className="inline-error profile-error">{error}</p>}
