@@ -243,15 +243,16 @@ export function configureSocket(io) {
     socket.on('message_delivered', async ({ messageId, chatId } = {}) => {
       if (!mongoose.isValidObjectId(messageId) || !mongoose.isValidObjectId(chatId)) return
       const chat = await Chat.findOne({ _id: chatId, participants: userId })
-      if (!chat) return
+      const group = chat ? null : await Group.findOne({ _id: chatId, members: userId })
+      if (!chat && !group) return
       const message = await Message.findOneAndUpdate(
-        { _id: messageId, chat: chat._id, sender: { $ne: userId } },
+        { _id: messageId, ...(chat ? { chat: chat._id } : { group: group._id }), sender: { $ne: userId } },
         { $set: { deliveredAt: new Date() } },
         { returnDocument: 'after' },
       )
       if (!message) return
       io.to(userRoomFor(message.sender.toString())).emit('message_status', {
-        chatId: chat._id.toString(),
+        chatId: chat?._id.toString() || group._id.toString(),
         messageId: message._id.toString(),
         status: message.readAt || message.read ? 'read' : 'delivered',
         deliveredAt: message.deliveredAt,

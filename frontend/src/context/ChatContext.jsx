@@ -353,6 +353,20 @@ export function ChatProvider({ children }) {
         return normalized
     }, [activeChatId, isOnline, persistChats, selectedChat?.type, updateMessages, user?.id])
 
+    const sendSticker = useCallback(async stickerId => {
+        if (!activeChatId || !user?.id) throw new Error('Choose a conversation before sending a sticker.')
+        if (!isOnline) throw new Error('Connect to the internet before sending a sticker.')
+        const message = await chatService.sendSticker(activeChatId, selectedChat?.type === 'group', stickerId, user.id)
+        const normalized = { ...message, isOwn: true }
+        updateMessages(activeChatId, current => [...current, normalized])
+        setChats(current => {
+            const next = current.map(chat => chat.id === activeChatId ? { ...chat, lastMessage: 'Sticker', updatedAt: normalized.timestamp, updatedAtValue: normalized.createdAt } : chat)
+            persistChats(next)
+            return next
+        })
+        return normalized
+    }, [activeChatId, isOnline, persistChats, selectedChat?.type, updateMessages, user?.id])
+
     const editMessage = async (messageId, text) => {
         const updated = await chatService.editMessage(messageId, text, user.id)
         updateMessages(updated.chatId, messages => messages.map(message => message.id === updated.id ? { ...updated, isOwn: true } : message))
@@ -388,7 +402,7 @@ export function ChatProvider({ children }) {
 
     const createGroup = async payload => { const group = await chatService.createGroup(payload, user.id); setChats(current => { const next = [group, ...current.filter(chat => chat.id !== group.id)]; persistChats(next); return next }); setActiveChatId(group.id); return group }
     const updateNotifications = async settings => { const next = await notificationSettingsService.update(settings); setNotificationSettings(next); return next }
-    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, sendImageMessage, sendVoiceMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal, sendImageMessage, sendVoiceMessage])
+    const value = useMemo(() => ({ chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, updateNotifications, typingUserId: selectedChat ? typingUsersByChat[selectedChat.id] : null, searchResults, selectChat, setConversationVisible, openChat, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, refreshChats, refreshUnreadTotal, createGroup, setSearchResults, searchUsers }), [chats, activeChatId, selectedChat, activeMessages, unreadTotal, notificationSettings, socket, typingUsersByChat, searchResults, searchUsers, setConversationVisible, startTyping, stopTyping, refreshChats, refreshUnreadTotal, sendImageMessage, sendVoiceMessage, sendSticker])
     return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
 

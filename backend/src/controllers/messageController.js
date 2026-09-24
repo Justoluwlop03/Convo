@@ -24,6 +24,8 @@ export const messageView = message => {
     text: message.deletedAt ? 'This message was deleted' : message.text,
     type: message.deletedAt ? 'text' : message.type || (message.audioUrl ? 'voice' : message.imageUrl ? 'image' : 'text'),
     imageUrl: message.deletedAt ? '' : message.imageUrl || '',
+    stickerId: message.deletedAt ? '' : message.stickerId || '',
+    stickerUrl: message.deletedAt ? '' : message.stickerUrl || '',
     audioUrl: message.deletedAt ? '' : voiceNotePlaybackUrl(message.audioUrl || ''),
     duration: message.deletedAt ? 0 : Number(message.duration) || 0,
     deleted: Boolean(message.deletedAt),

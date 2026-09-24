@@ -1,12 +1,13 @@
-import { AlertCircle, Check, CheckCheck, Clock3, Copy, MoreHorizontal, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react'
+import { AlertCircle, Check, CheckCheck, Clock3, Copy, Heart, MoreHorizontal, Pencil, Reply, SmilePlus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import UserAvatar from '../users/UserAvatar'
 import { useStories } from '../../context/StoryContext'
 import VoiceMessage from './VoiceMessage'
+import api from '../../services/api'
 
 const emojiOptions = ['❤️', '😂', '👍', '😢', '😮']
 
-export default function MessageBubble({ message, isOwn, canModify = true, canReply = true, onReply, onEdit, onDelete }) {
+export default function MessageBubble({ message, isOwn, canModify = true, canReply = true, onReply, onEdit, onDelete, onSendSticker }) {
   const { openStoryById } = useStories()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.text)
@@ -16,6 +17,7 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
   const [reaction, setReaction] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [toast, setToast] = useState('')
+  const [stickerFavorite, setStickerFavorite] = useState(null)
   const rowRef = useRef(null)
   const pressTimer = useRef(null)
   const toastTimer = useRef(null)
@@ -25,6 +27,9 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
     const menuWidth = 190
     const menuHeight = (isOwn && canModify ? 310 : 250) + (canReply ? 0 : -50)
     setMenu({ x: Math.max(8, Math.min(x, window.innerWidth - menuWidth - 8)), y: Math.max(8, Math.min(y, window.innerHeight - menuHeight - 8)) })
+    if (message.type === 'sticker' && stickerFavorite === null) {
+      api.get('/stickers').then(({ data }) => setStickerFavorite(data.favorites.includes(message.stickerId))).catch(() => setStickerFavorite(false))
+    }
   }
   const clearLongPress = () => { window.clearTimeout(pressTimer.current); pressTimer.current = null }
 
@@ -70,17 +75,26 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
     finally { setBusy(false) }
   }
 
+  const toggleStickerFavorite = async () => {
+    try {
+      const { data } = await api.post(`/stickers/${message.stickerId}/favorite`, { favorite: !stickerFavorite })
+      setStickerFavorite(data.favorites.includes(message.stickerId))
+      setMenu(null)
+    } catch (error) { setToast(error.response?.data?.message || 'Unable to save sticker') }
+  }
+
   return <>
     <div ref={rowRef} className={`message-row ${isOwn ? 'own' : ''}`} onContextMenu={event => { if (message.deleted) return; event.preventDefault(); openMenu(event.clientX, event.clientY) }} onTouchStart={event => { if (message.deleted) return; const touch = event.touches[0]; clearLongPress(); pressTimer.current = window.setTimeout(() => openMenu(touch.clientX, touch.clientY), 500) }} onTouchEnd={clearLongPress} onTouchCancel={clearLongPress} onTouchMove={clearLongPress}>
       {!isOwn && <UserAvatar user={message.sender} className="tiny" alt={`${message.sender?.username || 'User'}'s profile`} />}
       <div className={`message-bubble-wrap ${isOwn ? 'own' : ''}`}>
         {!message.deleted && <button type="button" className="message-menu-trigger" aria-label="Message actions" onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); openMenu(rect.right, rect.top) }}><MoreHorizontal size={17}/></button>}
-        <div className={`message-bubble ${isOwn ? 'own' : ''} ${message.deleted ? 'deleted' : ''}`}>
+        <div className={`message-bubble ${isOwn ? 'own' : ''} ${message.deleted ? 'deleted' : ''} ${message.type === 'sticker' && !message.deleted ? 'sticker-message' : ''}`}>
           {message.replyTo && <div className="message-reply-preview"><strong>{message.replyTo.sender?.username || 'Message'}</strong><span>{message.replyTo.text}</span></div>}
           {message.story && <button type="button" className="message-story-preview" disabled={message.story.expired} onClick={() => openStoryById(message.story.id)}><span>{message.story.expired ? 'Status expired' : 'Replied to a status'}</span>{!message.story.expired && (message.story.mediaType === 'text' ? <strong>{message.story.text || 'Text status'}</strong> : <img src={message.story.thumbnailUrl || message.story.mediaUrl} alt="Status preview" />)}</button>}
           {message.imageUrl && !message.deleted && <a className="message-image-link" href={message.imageUrl} target="_blank" rel="noreferrer"><img className="message-image" src={message.imageUrl} alt="Image shared in chat" loading="lazy"/></a>}
+          {message.type === 'sticker' && !message.deleted && <img className="message-sticker-image" src={message.stickerUrl} alt={`${message.stickerId} sticker`} loading="lazy"/>}
           {message.type === 'voice' && !message.deleted && <VoiceMessage message={message}/>}
-          {editing ? <div className="message-edit-form"><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit() } }} rows={2} autoFocus maxLength={5000}/><div><button type="button" onClick={saveEdit} disabled={busy || !draft.trim()}>Save</button><button type="button" onClick={() => { setDraft(message.text); setEditing(false) }} disabled={busy}>Cancel</button></div></div> : message.deleted ? <p>This message was deleted</p> : message.type === 'voice' ? null : (message.text !== 'Photo' || !message.imageUrl) && <p>{message.text}</p>}
+          {editing ? <div className="message-edit-form"><textarea value={draft} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); saveEdit() } }} rows={2} autoFocus maxLength={5000}/><div><button type="button" onClick={saveEdit} disabled={busy || !draft.trim()}>Save</button><button type="button" onClick={() => { setDraft(message.text); setEditing(false) }} disabled={busy}>Cancel</button></div></div> : message.deleted ? <p>This message was deleted</p> : message.type === 'voice' || message.type === 'sticker' ? null : (message.text !== 'Photo' || !message.imageUrl) && <p>{message.text}</p>}
           <div className="message-meta"><span>{message.timestamp || 'now'}{message.editedAt && !message.deleted ? ' · edited' : ''}</span>{isOwn && <span className={`message-status ${message.status || 'sent'}`} aria-label={`Message ${message.status || 'sent'}`}>{statusIcon}</span>}</div>
         </div>
         {reaction && <span className="message-reaction" aria-label={`Reaction ${reaction}`}>{reaction}</span>}
@@ -90,8 +104,9 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
     {menu && <div className="message-action-menu" role="menu" style={{ left: menu.x, top: menu.y }}>
       {canReply && !message.deleted && <button type="button" role="menuitem" data-action="reply" onClick={() => { onReply?.(message); setMenu(null) }}><Reply size={16}/>Reply</button>}
       {!message.deleted && <button type="button" role="menuitem" data-action="react" onClick={() => setShowReactions(current => !current)}><SmilePlus size={16}/>React</button>}
+      {message.type === 'sticker' && !message.deleted && <><button type="button" role="menuitem" onClick={toggleStickerFavorite}><Heart size={16}/>{stickerFavorite ? 'Remove from Favorites' : 'Save to Favorites'}</button><button type="button" role="menuitem" onClick={() => { onSendSticker?.(message.stickerId); setMenu(null) }}><Reply size={16}/>Send sticker</button><button type="button" role="menuitem" onClick={() => setMenu(null)}>Cancel</button></>}
       {showReactions && <div className="message-reaction-picker" aria-label="Choose a reaction">{emojiOptions.map(emoji => <button type="button" key={emoji} onClick={() => { setReaction(emoji); setShowReactions(false); setMenu(null) }} aria-label={`React ${emoji}`}>{emoji}</button>)}</div>}
-      {isOwn && canModify && !message.deleted && message.type !== 'voice' && <button type="button" role="menuitem" data-action="edit" onClick={() => { setDraft(message.text); setEditing(true); setMenu(null) }}><Pencil size={16}/>Edit</button>}
+      {isOwn && canModify && !message.deleted && !['voice', 'sticker'].includes(message.type) && <button type="button" role="menuitem" data-action="edit" onClick={() => { setDraft(message.text); setEditing(true); setMenu(null) }}><Pencil size={16}/>Edit</button>}
       {isOwn && canModify && !message.deleted && <button type="button" role="menuitem" data-action="delete" onClick={() => { setConfirmDelete(true); setMenu(null) }}><Trash2 size={16}/>Delete</button>}
       {!message.deleted && <button type="button" role="menuitem" data-action="copy" onClick={copyMessage}><Copy size={16}/>Copy</button>}
     </div>}

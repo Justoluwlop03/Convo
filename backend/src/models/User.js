@@ -18,6 +18,8 @@ const userSchema = new mongoose.Schema({
     showPreview: { type: Boolean, default: true },
     mutedConversationIds: [{ type: mongoose.Schema.Types.ObjectId }],
   },
+  favoriteStickers: { type: [String], default: [] },
+  recentStickers: { type: [String], default: [] },
 }, { timestamps: true })
 
 userSchema.methods.toPublicJSON = function toPublicJSON() {

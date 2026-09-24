@@ -56,6 +56,17 @@ export function uploadMessageImage(buffer) {
     })
 }
 
+export function uploadStickerImage(buffer) {
+    requireConfiguration()
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'convo/stickers', resource_type: 'image', format: 'webp', transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'auto' }] },
+            (error, result) => error ? reject(error) : resolve(result),
+        )
+        stream.end(buffer)
+    })
+}
+
 export function deleteMessageImage(publicId) {
     if (!publicId || !isConfigured()) return Promise.resolve()
     return cloudinary.uploader.destroy(publicId, { resource_type: 'image', invalidate: true })

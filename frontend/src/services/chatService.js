@@ -58,6 +58,10 @@ export const chatService = {
         const { data } = await api.post('/messages', { chatId, text, replyTo })
         return normalizeMessage(data.message, currentUserId)
     },
+    async sendSticker(conversationId, isGroup, stickerId, currentUserId) {
+        const { data } = await api.post('/stickers/send', { [isGroup ? 'groupId' : 'chatId']: conversationId, stickerId })
+        return normalizeMessage(data.message, currentUserId)
+    },
 
     async sendImageMessage(chatId, image, caption, currentUserId, replyTo = null) {
         const form = new FormData()

@@ -1,5 +1,6 @@
-import { ImagePlus, Mic, SendHorizontal, Square, Trash2, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { ImagePlus, Mic, SendHorizontal, Square, Sticker, Trash2, X } from 'lucide-react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import StickerPanel from './StickerPanel'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024
@@ -18,7 +19,7 @@ function microphoneError(error) {
     return error?.message || 'Unable to start microphone recording.'
 }
 
-export default function MessageComposer({ onSend, onSendImage, onSendVoice, allowImages = false, onTypingStart, onTypingStop, replyTo, onCancelReply, disabled = false, disabledMessage = '' }) {
+export default function MessageComposer({ onSend, onSendImage, onSendVoice, onSendSticker, allowImages = false, onTypingStart, onTypingStop, replyTo, onCancelReply, disabled = false, disabledMessage = '' }) {
     const [value, setValue] = useState('')
     const [image, setImage] = useState(null)
     const [composerError, setComposerError] = useState('')
@@ -30,7 +31,9 @@ export default function MessageComposer({ onSend, onSendImage, onSendVoice, allo
     const [stoppingRecording, setStoppingRecording] = useState(false)
     const [recordingSeconds, setRecordingSeconds] = useState(0)
     const [voiceAttachment, setVoiceAttachment] = useState(null)
+    const [showStickers, setShowStickers] = useState(false)
     const imageInputRef = useRef(null)
+    const textareaRef = useRef(null)
     const recorderRef = useRef(null)
     const streamRef = useRef(null)
     const chunksRef = useRef([])
@@ -71,6 +74,14 @@ export default function MessageComposer({ onSend, onSendImage, onSendVoice, allo
         const url = voiceAttachment?.previewUrl
         return () => { if (url) URL.revokeObjectURL(url) }
     }, [voiceAttachment?.previewUrl])
+    useLayoutEffect(() => {
+        const textarea = textareaRef.current
+        if (!textarea) return
+        textarea.style.height = 'auto'
+        const maxHeight = Number.parseFloat(window.getComputedStyle(textarea).maxHeight) || 120
+        textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
+        textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+    }, [value])
 
     const handleChange = event => {
         setValue(event.target.value)
@@ -233,13 +244,15 @@ export default function MessageComposer({ onSend, onSendImage, onSendVoice, allo
     const busy = sendingImage || sendingVoice || acquiringMicrophone || stoppingRecording
 
     return <form className={`composer ${recording ? 'composer-recording' : ''}`} onSubmit={handleSubmit}>
+        {showStickers && <StickerPanel onClose={() => setShowStickers(false)} onSend={onSendSticker} disabled={disabled || busy}/>}
         {replyTo && <div className="composer-reply"><div><strong>Replying to {replyTo.sender?.username || 'message'}</strong><span>{replyTo.text || (replyTo.imageUrl ? 'Photo' : '')}</span></div><button type="button" onClick={onCancelReply} aria-label="Cancel reply"><X size={15}/></button></div>}
         {previewUrl && <div className="composer-image-preview"><img src={previewUrl} alt="Image to send"/><button type="button" onClick={() => { setImage(null); setPreviewUrl('') }} aria-label="Remove image" disabled={busy}><X size={16}/></button></div>}
         {recording && <div className="voice-recording-row" role="status"><span className="voice-recording-dot"/><strong>Recording {formatTime(recordingSeconds)}</strong><button type="button" className="voice-cancel-button" onClick={cancelRecording} aria-label="Cancel recording"><Trash2 size={17}/></button><button type="button" className="voice-stop-button" onClick={stopRecording} aria-label="Stop recording"><Square size={17}/><span>Stop</span></button></div>}
         {voiceAttachment?.previewUrl && <div className="voice-preview-row"><audio src={voiceAttachment.previewUrl} controls preload="metadata" aria-label="Preview voice note"/><span>{formatTime(voiceAttachment.duration)}</span><button type="button" className="voice-cancel-button" onClick={() => { setVoiceAttachment(null); setRecordingSeconds(0) }} disabled={busy} aria-label="Delete voice note"><Trash2 size={17}/></button></div>}
         {composerError && <p className="inline-error" role="alert">{composerError}</p>}
-        <textarea value={value} onChange={handleChange} placeholder={disabled ? disabledMessage || 'Messaging is unavailable.' : image ? 'Add a caption (optional)…' : 'Write a message…'} rows={1} disabled={disabled || busy || recording || Boolean(voiceAttachment)}/>
+        <textarea ref={textareaRef} value={value} onChange={handleChange} placeholder={disabled ? disabledMessage || 'Messaging is unavailable.' : image ? 'Add a caption (optional)…' : 'Write a message…'} rows={1} disabled={disabled || busy || recording || Boolean(voiceAttachment)}/>
         <div className="composer-actions">
+            {onSendSticker && !image && !voiceAttachment && !recording && <button type="button" className={`composer-image-button sticker-toggle ${showStickers ? 'active' : ''}`} onClick={() => setShowStickers(current => !current)} aria-label="Choose a sticker" aria-expanded={showStickers} disabled={disabled || busy}><Sticker size={18}/></button>}
             {allowImages && !voiceAttachment && !recording && !acquiringMicrophone && <><input ref={imageInputRef} className="composer-image-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseImage} disabled={disabled || busy}/><button type="button" className="composer-image-button" onClick={() => imageInputRef.current?.click()} aria-label="Attach an image" title="Share image" disabled={disabled || busy}><ImagePlus size={18}/></button></>}
             {!image && !voiceAttachment && !recording && !acquiringMicrophone && !value.trim() && <button type="button" className="composer-image-button voice-record-button" onClick={startRecording} aria-label="Record a voice note" title="Record voice note" disabled={disabled || busy}><Mic size={18}/></button>}
             <button type="submit" className="primary-button send-button" disabled={disabled || busy || recording || (!value.trim() && !image && !canSendVoice)} aria-label={sendingImage || sendingVoice ? 'Uploading attachment' : 'Send message'}>

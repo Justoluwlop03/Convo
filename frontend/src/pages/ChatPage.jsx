@@ -16,7 +16,7 @@ import { useCall } from '../context/CallContext'
 import StoriesBar from '../components/stories/StoriesBar'
 
 export default function ChatPage() {
-    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, sendImageMessage, sendVoiceMessage, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
+    const { chats, activeChatId, selectedChat, activeMessages, typingUserId, selectChat, setConversationVisible, sendMessage, sendImageMessage, sendVoiceMessage, sendSticker, editMessage, deleteMessage, deleteChat, startTyping, stopTyping, createGroup, refreshChats } = useChat()
     const { user } = useAuth()
     const { call, startCall } = useCall()
     const [isMobileChatOpen, setIsMobileChatOpen] = useState(false)
@@ -118,13 +118,13 @@ export default function ChatPage() {
                                 <div className="empty-state wide">Start the conversation by saying hello.</div>
                             ) : (
                                 activeMessages.map((message) => (
-                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply={selectedChat.type !== 'group'} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} />
+                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply={selectedChat.type !== 'group'} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} onSendSticker={sendSticker} />
                                 ))
                             )}
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}
                         </div>
 
-                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onSendImage={async (image, caption, replyTo) => { await sendImageMessage(image, caption, replyTo); setReplyingTo(null) }} onSendVoice={async (blob, mimeType, replyTo) => { await sendVoiceMessage(blob, mimeType, replyTo); setReplyingTo(null) }} allowImages onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} disabled={groupIsLockedForMember} disabledMessage="This group is locked. Only admins can send messages." />
+                        <MessageComposer onSend={async (text, replyTo) => { await sendMessage(text, replyTo); setReplyingTo(null) }} onSendImage={async (image, caption, replyTo) => { await sendImageMessage(image, caption, replyTo); setReplyingTo(null) }} onSendVoice={async (blob, mimeType, replyTo) => { await sendVoiceMessage(blob, mimeType, replyTo); setReplyingTo(null) }} onSendSticker={sendSticker} allowImages onTypingStart={startTyping} onTypingStop={stopTyping} replyTo={replyingTo} onCancelReply={() => setReplyingTo(null)} disabled={groupIsLockedForMember} disabledMessage="This group is locked. Only admins can send messages." />
                     </>
                 ) : (
                     <div className="empty-chat-shell">

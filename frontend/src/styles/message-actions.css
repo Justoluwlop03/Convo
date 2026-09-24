@@ -173,6 +173,51 @@
 
 @keyframes message-action-pop { from { opacity: 0; transform: translateY(5px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
+.sticker-panel { position: absolute; z-index: 100; right: 1.1rem; bottom: calc(100% + .55rem); box-sizing: border-box; width: min(25rem, calc(100vw - 2rem)); max-height: min(25rem, 58dvh); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(125, 211, 252, .24); border-radius: 18px; background: linear-gradient(150deg, #1e293b, #0b1220 85%); color: #e5eefb; box-shadow: 0 18px 48px rgba(2, 6, 23, .44); animation: message-action-pop .16s ease-out; }
+.sticker-panel-header { display: flex; align-items: center; justify-content: space-between; padding: .85rem 1rem .65rem; }
+.sticker-panel-header > div { display: grid; gap: .14rem; }
+.sticker-panel-header strong { font-size: .95rem; }
+.sticker-panel-header span { color: #93a4bd; font-size: .7rem; }
+.sticker-header-actions { display: flex; align-items: center; gap: .3rem; }
+.sticker-add-photo { display: inline-flex; align-items: center; gap: .35rem; min-height: 2rem; padding: 0 .55rem; border: 1px solid rgba(96, 165, 250, .24); border-radius: 9px; color: #bfdbfe; background: rgba(37, 99, 235, .13); font-size: .72rem; cursor: pointer; }
+.sticker-add-photo input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.sticker-image-draft { display: flex; align-items: center; gap: .6rem; margin: .55rem .65rem 0; padding: .5rem; border: 1px solid rgba(96, 165, 250, .2); border-radius: 12px; background: rgba(37, 99, 235, .08); }
+.sticker-image-draft > img { width: 3.2rem; height: 3.2rem; flex: 0 0 auto; border-radius: 9px; object-fit: cover; }
+.sticker-image-draft > div { display: grid; flex: 1; min-width: 0; gap: .15rem; }
+.sticker-image-draft strong { font-size: .76rem; }
+.sticker-image-draft span { color: #93a4bd; font-size: .66rem; }
+.sticker-image-draft > button { min-height: 2.2rem; padding: 0 .6rem; border: 1px solid rgba(96, 165, 250, .28); border-radius: 9px; color: #eff6ff; background: #2563eb; font: inherit; font-size: .7rem; cursor: pointer; }
+.sticker-image-draft > button:disabled { opacity: .65; cursor: wait; }
+.sticker-image-draft > button.sticker-draft-cancel { width: 2rem; min-width: 2rem; padding: 0; display: grid; place-items: center; color: #cbd5e1; background: transparent; }
+.sticker-tabs,.sticker-pack-tabs { display: flex; gap: .3rem; padding: .25rem .7rem .65rem; border-bottom: 1px solid rgba(148, 163, 184, .12); }
+.sticker-tabs button,.sticker-pack-tabs button { min-height: 2.35rem; display: inline-flex; align-items: center; justify-content: center; gap: .38rem; padding: .35rem .65rem; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #aebed3; font: inherit; font-size: .75rem; cursor: pointer; }
+.sticker-tabs button.active,.sticker-pack-tabs button.active { border-color: rgba(96, 165, 250, .2); background: rgba(37, 99, 235, .2); color: #dbeafe; }
+.sticker-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: .45rem; padding: .65rem; overflow-y: auto; overscroll-behavior: contain; }
+.sticker-tile { position: relative; aspect-ratio: 1; min-width: 0; }
+.sticker-send { width: 100%; height: 100%; display: grid; place-items: center; padding: .35rem; border: 1px solid transparent; border-radius: 13px; background: rgba(148, 163, 184, .06); cursor: pointer; transition: transform .14s ease, background .14s ease; }
+.sticker-send:hover { transform: scale(1.045); background: rgba(59, 130, 246, .13); }
+.sticker-send:active { transform: scale(.95); }
+.sticker-send img { width: 100%; height: 100%; object-fit: contain; }
+.sticker-favorite { position: absolute; top: .2rem; right: .2rem; width: 1.7rem; height: 1.7rem; display: grid; place-items: center; border: 1px solid rgba(148, 163, 184, .16); border-radius: 50%; background: rgba(15, 23, 42, .86); color: #aebed3; opacity: 0; cursor: pointer; }
+.sticker-tile:hover .sticker-favorite,.sticker-favorite:focus-visible,.sticker-favorite.saved { opacity: 1; }
+.sticker-favorite.saved { color: #f472b6; }
+.sticker-empty,.sticker-error { margin: auto; padding: 1.5rem 1rem; color: #9badc5; font-size: .8rem; text-align: center; }
+.sticker-error { color: #fda4af; padding: .35rem .8rem; }
+.message-bubble.sticker-message { width: max-content; max-width: min(70vw, 12rem); padding: .15rem; border-color: transparent; background: transparent; overflow: visible; }
+.message-bubble.sticker-message.own { background: transparent; }
+.message-sticker-image { display: block; width: clamp(6rem, 14vw, 9rem); height: clamp(6rem, 14vw, 9rem); object-fit: contain; filter: drop-shadow(0 5px 9px rgba(2, 6, 23, .18)); }
+.message-bubble.sticker-message > .message-meta > span:first-child { color: #94a3b8; }
+.message-bubble.sticker-message .message-status { color: #60a5fa; }
+.sticker-toggle.active { color: #93c5fd; background: rgba(37, 99, 235, .16); }
+.app-shell.theme-light .sticker-panel { border-color: rgba(37, 99, 235, .17); background: linear-gradient(150deg, #fff, #f1f6ff); color: #1e3a8a; box-shadow: 0 18px 44px rgba(30, 64, 175, .2); }
+.app-shell.theme-light .sticker-panel-header span,.app-shell.theme-light .sticker-tabs button,.app-shell.theme-light .sticker-pack-tabs button,.app-shell.theme-light .sticker-empty { color: #64748b; }
+.app-shell.theme-light .sticker-tabs button.active,.app-shell.theme-light .sticker-pack-tabs button.active { color: #1e3a8a; background: #eff6ff; }
+.app-shell.theme-light .sticker-send { background: rgba(37, 99, 235, .045); }
+.app-shell.theme-light .sticker-add-photo { color: #1d4ed8; }
+.app-shell.theme-light .sticker-image-draft { border-color: rgba(37, 99, 235, .15); background: #eff6ff; }
+.app-shell.theme-light .sticker-image-draft span { color: #64748b; }
+@media (max-width: 767px) { .sticker-panel { right: 0; bottom: calc(100% + .35rem); width: min(100%, calc(100vw - 1.4rem)); max-height: min(24rem, 48dvh); } .sticker-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: .35rem; } .sticker-favorite { opacity: 1; } }
+
 @media (hover: hover) and (pointer: fine) {
   .message-action-menu > button:hover { transform: translateX(2px); }
 }
