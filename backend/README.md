@@ -9,6 +9,15 @@
 2. Run `npm install`.
 3. Run `npm run dev`.
 
+## Password reset email
+
+Password reset emails are sent through Brevo. Configure `BREVO_API_KEY`,
+`BREVO_SENDER_EMAIL` (a sender address verified in Brevo), and optionally
+`BREVO_SENDER_NAME`; set `CLIENT_URL`
+to the frontend origin so reset links return to the deployed app. Reset links
+expire after 30 minutes and can only be used once. The reset request endpoint
+returns the same response whether or not the email has an account.
+
 The API listens on `http://localhost:5000` by default. Socket.IO clients authenticate with `auth: { token }`.
 
 REST resources are mounted at `/api/auth`, `/api/users`, `/api/chats`, and `/api/messages`. `GET /health` is unauthenticated.

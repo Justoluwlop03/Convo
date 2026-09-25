@@ -6,6 +6,24 @@ function getApiError(error, fallbackMessage) {
 }
 
 export const authService = {
+    async requestPasswordReset(email) {
+        try {
+            const { data } = await api.post('/auth/forgot-password', { email })
+            return data
+        } catch (error) {
+            getApiError(error, 'Unable to request a password reset.')
+        }
+    },
+
+    async resetPassword(token, password) {
+        try {
+            const { data } = await api.post('/auth/reset-password', { token, password })
+            return data
+        } catch (error) {
+            getApiError(error, 'Unable to reset your password.')
+        }
+    },
+
     async login(credentials) {
         try {
             const { data } = await api.post('/auth/login', credentials)
