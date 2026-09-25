@@ -7,7 +7,7 @@ import api from '../../services/api'
 
 const emojiOptions = ['\u2764\uFE0F', '\u{1F602}', '\u{1F44D}', '\u{1F622}', '\u{1F62E}']
 
-export default function MessageBubble({ message, isOwn, canModify = true, canReply = true, canTag = false, currentUserId, onReply, onEdit, onDelete, onSendSticker, onTagMessage }) {
+export default function MessageBubble({ message, isOwn, canModify = true, canReply = true, canTag = false, currentUserId, actionsActive = false, actionButtonPosition, onActivateActions, onReply, onEdit, onDelete, onSendSticker, onTagMessage }) {
   const { openStoryById } = useStories()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.text)
@@ -33,13 +33,22 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
   }
   const clearLongPress = () => { window.clearTimeout(pressTimer.current); pressTimer.current = null }
 
+  const activateActions = (x, y) => {
+    onActivateActions?.(message.id, {
+      x: Math.max(8, Math.min(x + 10, window.innerWidth - 48)),
+      y: Math.max(8, Math.min(y + 10, window.innerHeight - 48)),
+    })
+  }
+
+  useEffect(() => { if (!actionsActive) setMenu(null) }, [actionsActive])
+
   useEffect(() => {
-    const closeOutside = event => { if (!rowRef.current?.contains(event.target) && !event.target.closest?.('.message-action-menu')) setMenu(null) }
-    const closeOnScroll = () => setMenu(null)
+    const closeOutside = event => { if (!rowRef.current?.contains(event.target) && !event.target.closest?.('.message-action-menu')) { setMenu(null); if (actionsActive) onActivateActions?.(null, null) } }
+    const closeOnScroll = () => { if (actionsActive || menu) { setMenu(null); if (actionsActive) onActivateActions?.(null, null) } }
     document.addEventListener('pointerdown', closeOutside)
     window.addEventListener('scroll', closeOnScroll, true)
-    return () => { document.removeEventListener('pointerdown', closeOutside); window.removeEventListener('scroll', closeOnScroll, true); window.clearTimeout(toastTimer.current) }
-  }, [])
+    return () => { document.removeEventListener('pointerdown', closeOutside); window.removeEventListener('scroll', closeOnScroll, true); clearLongPress(); window.clearTimeout(toastTimer.current) }
+  }, [actionsActive, menu, onActivateActions])
 
   const copyMessage = async () => {
     try {
@@ -102,10 +111,10 @@ export default function MessageBubble({ message, isOwn, canModify = true, canRep
   }, {}))
 
   return <>
-    <div ref={rowRef} className={`message-row ${isOwn ? 'own' : ''}`} onContextMenu={event => { if (message.deleted) return; event.preventDefault(); openMenu(event.clientX, event.clientY) }} onTouchStart={event => { if (message.deleted) return; const touch = event.touches[0]; clearLongPress(); pressTimer.current = window.setTimeout(() => openMenu(touch.clientX, touch.clientY), 500) }} onTouchEnd={clearLongPress} onTouchCancel={clearLongPress} onTouchMove={clearLongPress}>
+    <div ref={rowRef} className={`message-row ${isOwn ? 'own' : ''}`} onContextMenu={event => { if (message.deleted) return; event.preventDefault(); activateActions(event.clientX, event.clientY) }} onTouchStart={event => { if (message.deleted) return; const touch = event.touches[0]; clearLongPress(); pressTimer.current = window.setTimeout(() => activateActions(touch.clientX, touch.clientY), 500) }} onTouchEnd={clearLongPress} onTouchCancel={clearLongPress} onTouchMove={clearLongPress}>
       {!isOwn && <UserAvatar user={message.sender} className="tiny" alt={`${message.sender?.username || 'User'}'s profile`} />}
       <div className={`message-bubble-wrap ${isOwn ? 'own' : ''}`}>
-        {!message.deleted && <button type="button" className="message-menu-trigger" aria-label="Message actions" onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); openMenu(rect.right, rect.top) }}><MoreHorizontal size={17}/></button>}
+        {!message.deleted && actionsActive && actionButtonPosition && <button type="button" className="message-menu-trigger" style={{ left: actionButtonPosition.x, top: actionButtonPosition.y }} aria-label="Message actions" onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); openMenu(rect.right, rect.top) }}><MoreHorizontal size={17}/></button>}
         <div className={`message-bubble ${isOwn ? 'own' : ''} ${message.deleted ? 'deleted' : ''} ${message.type === 'sticker' && !message.deleted ? 'sticker-message' : ''}`}>
           {message.replyTo && <div className="message-reply-preview"><strong>{message.replyTo.sender?.username || 'Message'}</strong><span>{message.replyTo.text}</span></div>}
           {message.story && <button type="button" className="message-story-preview" disabled={message.story.expired} onClick={() => openStoryById(message.story.id)}><span>{message.story.expired ? 'Status expired' : 'Replied to a status'}</span>{!message.story.expired && (message.story.mediaType === 'text' ? <strong>{message.story.text || 'Text status'}</strong> : <img src={message.story.thumbnailUrl || message.story.mediaUrl} alt="Status preview" />)}</button>}

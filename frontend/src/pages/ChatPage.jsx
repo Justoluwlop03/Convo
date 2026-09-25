@@ -24,6 +24,7 @@ export default function ChatPage() {
     const [creatingGroup, setCreatingGroup] = useState(false)
     const [showGroupInfo, setShowGroupInfo] = useState(false)
     const [showDeleteChat, setShowDeleteChat] = useState(false)
+    const [activeMessageActions, setActiveMessageActions] = useState(null)
     const navigate = useNavigate()
     const messageListRef = useRef(null)
     const scrollStateRef = useRef({ chatId: null, lastMessageId: null, nearBottom: true })
@@ -149,7 +150,7 @@ export default function ChatPage() {
                                 <div className="empty-state wide">Start the conversation by saying hello.</div>
                             ) : (
                                 activeMessages.map((message) => (
-                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply canTag={selectedChat.type === 'group'} currentUserId={user?.id} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} onSendSticker={sendSticker} onTagMessage={tagGroupMessage} />
+                                    <MessageBubble key={message.id} message={message} isOwn={message.isOwn} canModify={selectedChat.type !== 'group'} canReply canTag={selectedChat.type === 'group'} currentUserId={user?.id} actionsActive={activeMessageActions?.id === message.id} onActivateActions={(id, position) => setActiveMessageActions(id ? { id, position } : null)} actionButtonPosition={activeMessageActions?.id === message.id ? activeMessageActions.position : null} onReply={setReplyingTo} onEdit={editMessage} onDelete={deleteMessage} onSendSticker={sendSticker} onTagMessage={tagGroupMessage} />
                                 ))
                             )}
                             {typingUserId && <TypingIndicator username={selectedChat.type === 'group' ? selectedChat.members?.find(member => member.id === typingUserId)?.username || 'Someone' : typingUserId === selectedChat.participant.id ? selectedChat.participant.username : ''} />}

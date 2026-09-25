@@ -2,10 +2,8 @@
 .message-bubble-wrap { position: relative; }
 
 .message-menu-trigger {
-  position: absolute;
-  z-index: 2;
-  top: -.45rem;
-  right: -.45rem;
+  position: fixed;
+  z-index: 221;
   display: grid;
   place-items: center;
   width: 2rem;
@@ -16,14 +14,11 @@
   background: #172238;
   color: #dbeafe;
   box-shadow: 0 5px 15px rgba(2, 6, 23, .24);
-  opacity: 0;
   cursor: pointer;
   transition: opacity .14s ease, background .14s ease, transform .14s ease;
 }
-.message-bubble-wrap:hover .message-menu-trigger,
-.message-menu-trigger:focus-visible { opacity: 1; }
-.message-menu-trigger:hover { background: #2563eb; transform: scale(1.04); }
 .message-menu-trigger:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
+.message-menu-trigger:hover { background: #2563eb; transform: scale(1.04); }
 
 .message-action-menu {
   position: fixed;
@@ -225,7 +220,7 @@
   .message-action-menu > button:hover { transform: translateX(2px); }
 }
 @media (max-width: 767px) {
-  .message-menu-trigger { top: -.42rem; right: -.42rem; width: 2.25rem; height: 2.25rem; opacity: 1; }
+  .message-menu-trigger { width: 2.25rem; height: 2.25rem; }
   .message-action-menu { width: min(12rem, calc(100vw - 1rem)); max-height: min(22rem, calc(100dvh - 1rem)); }
   .message-action-menu > button { min-height: 2.8rem; }
   .message-reaction-picker { justify-content: space-around; }
