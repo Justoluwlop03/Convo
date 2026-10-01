@@ -1,7 +1,8 @@
-import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound, Users } from 'lucide-react'
+import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, ShieldCheck, SunMedium, UserPlus, UserRound, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import api from '../../services/api'
 import MobileSidebar from './MobileSidebar'
 import UserAvatar from '../users/UserAvatar'
 import InstallConvoButton from '../pwa/InstallConvoButton'
@@ -15,6 +16,7 @@ export default function AppLayout() {
     const navigate = useNavigate()
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const [showNotificationSettings, setShowNotificationSettings] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
     const [isLightMode, setIsLightMode] = useState(() => {
         const savedTheme = localStorage.getItem('convo-theme')
         if (savedTheme) return savedTheme === 'light'
@@ -26,6 +28,17 @@ export default function AppLayout() {
         localStorage.setItem('convo-theme', theme)
         document.documentElement.style.colorScheme = theme
     }, [isLightMode])
+
+    useEffect(() => {
+        let active = true
+        setIsAdmin(false)
+        if (user?.id) {
+            api.get('/admin/access')
+                .then(({ data }) => { if (active) setIsAdmin(data.isAdmin === true) })
+                .catch(() => { if (active) setIsAdmin(false) })
+        }
+        return () => { active = false }
+    }, [user?.id])
 
     const toggleTheme = () => setIsLightMode((value) => !value)
 
@@ -58,6 +71,10 @@ export default function AppLayout() {
                         <UserRound size={18} />
                         Profile
                     </NavLink>
+                    {isAdmin && <NavLink to="/admin" className="nav-link">
+                        <ShieldCheck size={18} />
+                        Admin dashboard
+                    </NavLink>}
                     <NavLink to="/settings" className="nav-link">
                         <Settings size={18} />
                         Settings

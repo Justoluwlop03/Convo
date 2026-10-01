@@ -15,4 +15,12 @@ api.interceptors.request.use((config) => {
     return config
 })
 
+api.interceptors.response.use((response) => response, (error) => {
+    if (error.response?.data?.code === 'ACCOUNT_BANNED') {
+        localStorage.removeItem('chat_token')
+        window.dispatchEvent(new Event('convo-account-banned'))
+    }
+    return Promise.reject(error)
+})
+
 export default api

@@ -23,6 +23,8 @@
 .profile-about-line { margin-top: .3rem; color: #9fb4d6; font-size: .83rem; white-space: pre-wrap; }
 .social-profile-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .5rem; align-self: center; margin-top: .7rem; padding: 0; }
 .social-profile-actions .primary-button,.social-profile-actions .ghost-button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 2.45rem; }
+.social-profile-actions .unadd-friend-action { color:#fda4af; border-color:rgba(248,113,113,.22); background:rgba(248,113,113,.08); }
+.social-profile-actions .unadd-friend-action:hover:not(:disabled) { background:rgba(248,113,113,.16); }
 .profile-more-wrap { position: relative; z-index: 20; }
 .profile-more-button { display: grid; width: 2.45rem; height: 2.45rem; place-items: center; border: 1px solid rgba(148,163,184,.18); border-radius: 12px; background: rgba(148,163,184,.08); color: #dbeafe; cursor: pointer; }
 .profile-more-button:hover { border-color: rgba(56,189,248,.42); background: rgba(59,130,246,.14); }
@@ -181,6 +183,7 @@
 .app-shell.theme-light .profile-more-button { color: #264568; border-color: rgba(37,99,235,.16); background: rgba(37,99,235,.06); }
 .app-shell.theme-light .profile-more-menu { border-color: rgba(37,99,235,.16); background: #fff; }
 .app-shell.theme-light .profile-more-menu button { color: #243a59; }
+.app-shell.theme-light .social-profile-actions .unadd-friend-action { color:#b91c1c; border-color:rgba(220,38,38,.18); background:rgba(220,38,38,.05); }
 .app-shell.theme-light .profile-photo-editor { border-color: rgba(37,99,235,.14); background: #f1f6ff; }
 .app-shell.theme-light .profile-photo-editor strong { color: #243a59; }
 .app-shell.theme-light .profile-statistics .profile-friend-stat:hover strong { color:#1676c5; }

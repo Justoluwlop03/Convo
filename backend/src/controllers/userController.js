@@ -123,6 +123,18 @@ export async function sendFriendRequest(req, res) {
   res.status(201).json({ user: { ...recipient.toProfileJSON(), relationship: 'outgoing' } })
 }
 
+export async function unaddFriend(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'User not found')
+  if (req.params.id === req.user._id.toString()) throw httpError(400, 'You cannot unadd yourself')
+  const target = await User.findById(req.params.id)
+  if (!target) throw httpError(404, 'User not found')
+  await Promise.all([
+    User.findByIdAndUpdate(req.user._id, { $pull: { friends: target._id } }),
+    User.findByIdAndUpdate(target._id, { $pull: { friends: req.user._id } }),
+  ])
+  res.json({ user: { ...target.toProfileJSON(), relationship: 'none' } })
+}
+
 async function requestUser(req) {
   if (!mongoose.isValidObjectId(req.params.id)) throw httpError(404, 'Friend request not found')
   const sender = await User.findById(req.params.id)

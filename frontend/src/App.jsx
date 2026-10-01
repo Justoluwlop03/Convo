@@ -13,6 +13,7 @@ import SearchPage from './pages/SearchPage'
 import FriendRequestsPage from './pages/FriendRequestsPage'
 import ReelsPage from './pages/ReelsPage'
 import FriendsPage from './pages/FriendsPage'
+import AdminDashboard from './pages/AdminDashboard'
 import { CallProvider } from './context/CallContext'
 import { StoryProvider } from './context/StoryContext'
 import './App.css'
@@ -47,6 +48,7 @@ function AppShell() {
           <Route path="/friends/:userId" element={<FriendsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 
         <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />

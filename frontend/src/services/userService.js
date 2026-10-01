@@ -24,6 +24,11 @@ export const userService = {
         return data.user
     },
 
+    async unaddFriend(userId) {
+        const { data } = await api.delete(`/users/${userId}/friend`)
+        return data.user
+    },
+
     async blockUser(userId) {
         const { data } = await api.post(`/users/${userId}/block`)
         return data.user

@@ -65,6 +65,7 @@ export function configureSocket(io) {
       const payload = jwt.verify(token, process.env.JWT_SECRET)
       const user = await User.findById(payload.userId)
       if (!user) return next(new Error('Authentication required'))
+      if (user.isBanned) return next(new Error('This account has been suspended'))
       socket.user = user
       next()
     } catch {

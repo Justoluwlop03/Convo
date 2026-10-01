@@ -10,6 +10,9 @@
 .friend-list-identity { display:block; min-width:0; overflow:hidden; }
 .friend-list-identity strong,.friend-list-identity small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .friend-request-pending { color:#91a5c5; font-size:.74rem; white-space:nowrap; }
+.friend-remove-button { color:#fda4af!important; border-color:rgba(248,113,113,.2)!important; background:rgba(248,113,113,.08)!important; }
+.friend-remove-button:hover:not(:disabled) { background:rgba(248,113,113,.16)!important; }
+.friend-remove-button:disabled { opacity:.6; cursor:wait; }
 .friends-empty { display:grid; justify-items:center; gap:.5rem; min-height:12rem; align-content:center; color:#8da3c3; text-align:center; }
 .friends-empty h2 { margin:0; color:#e8f1ff; font-size:1rem; }
 .friends-empty p { margin:0; font-size:.82rem; }
@@ -17,6 +20,7 @@
 .app-shell.theme-light .friends-title h1,.app-shell.theme-light .friends-empty h2 { color:#15233c; }
 .app-shell.theme-light .friends-title p,.app-shell.theme-light .friends-empty { color:#647899; }
 .app-shell.theme-light .friend-request-pending { color:#60728e; }
+.app-shell.theme-light .friend-remove-button { color:#b91c1c!important; border-color:rgba(220,38,38,.18)!important; background:rgba(220,38,38,.05)!important; }
 @media(max-width:640px) {
   .friends-page-heading { grid-template-columns:auto minmax(0,1fr); }
   .friends-title h1 { font-size:1rem; }

@@ -8,8 +8,8 @@ export const iceServers = [
   ...(turnUrl && turnUsername && turnCredential ? [{ urls: turnUrl, username: turnUsername, credential: turnCredential }] : []),
 ]
 
-export function createAudioPeerConnection() {
-  return new RTCPeerConnection({ iceServers })
+export function createAudioPeerConnection(servers = iceServers) {
+  return new RTCPeerConnection({ iceServers: servers })
 }
 
 export async function requestMicrophone() {

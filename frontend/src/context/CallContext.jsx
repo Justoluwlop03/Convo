@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { useChat } from './ChatContext'
-import { createAudioPeerConnection, requestMicrophone } from '../services/webrtc'
+import { createAudioPeerConnection, iceServers, requestMicrophone } from '../services/webrtc'
+import api from '../services/api'
 
 const CallContext = createContext(null)
 const TERMINAL_STATES = new Set(['rejected', 'ended', 'failed', 'busy', 'timeout'])
@@ -17,6 +18,7 @@ export function CallProvider({ children }) {
   const peerConnectionRef = useRef(null)
   const localStreamRef = useRef(null)
   const pendingCandidatesRef = useRef([])
+  const iceServersRef = useRef(null)
   const remoteAudioRef = useRef(null)
   const callRef = useRef(call)
   const resetTimerRef = useRef(null)
@@ -26,6 +28,7 @@ export function CallProvider({ children }) {
   const releaseMedia = useCallback(() => {
     clearTimeout(resetTimerRef.current)
     pendingCandidatesRef.current = []
+    iceServersRef.current = null
     peerConnectionRef.current?.close()
     peerConnectionRef.current = null
     localStreamRef.current?.getTracks().forEach(track => track.stop())
@@ -58,7 +61,7 @@ export function CallProvider({ children }) {
     if (peerConnectionRef.current) return peerConnectionRef.current
     const stream = localStreamRef.current || await requestMicrophone()
     localStreamRef.current = stream
-    const connection = createAudioPeerConnection()
+    const connection = createAudioPeerConnection(iceServersRef.current || undefined)
     peerConnectionRef.current = connection
     stream.getAudioTracks().forEach(track => connection.addTrack(track, stream))
     connection.onicecandidate = event => {
@@ -71,12 +74,13 @@ export function CallProvider({ children }) {
       audio.play().catch(() => setCall(current => ({ ...current, message: 'Tap the call screen to play remote audio.' })))
     }
     connection.onconnectionstatechange = () => {
+      if (callRef.current.callId !== callId) return
       if (connection.connectionState === 'connected') setCall(current => ({ ...current, status: 'connected', startedAt: current.startedAt || Date.now(), message: '' }))
-      if (['failed', 'closed'].includes(connection.connectionState)) finish('failed', 'The audio connection failed.')
+      if (connection.connectionState === 'failed') finish('failed', 'The audio connection failed.')
       if (connection.connectionState === 'disconnected') setCall(current => ({ ...current, message: 'Connection interrupted…' }))
     }
     connection.oniceconnectionstatechange = () => {
-      if (connection.iceConnectionState === 'failed') finish('failed', 'Unable to establish an audio connection.')
+      if (callRef.current.callId === callId && connection.iceConnectionState === 'failed') finish('failed', 'Unable to establish an audio connection.')
     }
     return connection
   }, [finish, socket])
@@ -145,6 +149,8 @@ export function CallProvider({ children }) {
     try {
       const stream = await requestMicrophone()
       localStreamRef.current = stream
+      const { data } = await api.get('/calls/ice-servers')
+      iceServersRef.current = [...(data.iceServers || []), ...iceServers]
       const response = await acknowledgement(socket, 'call:initiate', { chatId: chat.id })
       setCall({ status: 'calling', callId: response.callId, chatId: chat.id, peer: chat.participant, message: 'Calling…', muted: false, startedAt: null })
     } catch (error) {
@@ -157,7 +163,9 @@ export function CallProvider({ children }) {
     const current = callRef.current
     if (!socket || current.status !== 'ringing') return
     try {
-      await requestMicrophone().then(stream => { stream.getTracks().forEach(track => track.stop()) })
+      localStreamRef.current = await requestMicrophone()
+      const { data } = await api.get('/calls/ice-servers')
+      iceServersRef.current = [...(data.iceServers || []), ...iceServers]
       await acknowledgement(socket, 'call:accept', { callId: current.callId })
       setCall(value => ({ ...value, status: 'connecting', message: 'Connecting…' }))
     } catch (error) { finish('failed', error.name === 'NotAllowedError' ? 'Microphone permission is required to answer this call.' : error.message || 'Unable to answer the call.') }

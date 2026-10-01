@@ -71,6 +71,12 @@ export function AuthProvider({ children }) {
         clearOfflineProfile().catch(() => {})
     }
 
+    useEffect(() => {
+        const onBanned = () => logout()
+        window.addEventListener('convo-account-banned', onBanned)
+        return () => window.removeEventListener('convo-account-banned', onBanned)
+    }, [logout])
+
     const value = useMemo(
         () => ({
             user,

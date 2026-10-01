@@ -20,6 +20,10 @@ returns the same response whether or not the email has an account.
 
 The API listens on `http://localhost:5000` by default. Socket.IO clients authenticate with `auth: { token }`.
 
+## Admin dashboard
+
+Set `ADMIN_EMAILS` to a comma-separated list of account email addresses in the backend environment. Those accounts can open `/admin` in the frontend to view service health, aggregate usage, recent signups, and seven-day message activity. The dashboard also lets admins search accounts, ban or unban users, and send email announcements to all registered addresses. Broadcasts use the configured Brevo sender and are limited to three per hour. A ban signs the user out of active sockets and blocks future HTTP and Socket.IO authentication; allowlisted admins cannot be banned. Admin endpoints are authenticated and check this server-side allowlist; they do not expose message contents or recipient email addresses in broadcast history.
+
 REST resources are mounted at `/api/auth`, `/api/users`, `/api/chats`, and `/api/messages`. `GET /health` is unauthenticated.
 
 ## Production push setup

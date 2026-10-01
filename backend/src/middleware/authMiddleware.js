@@ -9,6 +9,11 @@ export async function requireAuth(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET)
     const user = await User.findById(payload.userId).select('+avatarPublicId')
     if (!user) throw httpError(401, 'User no longer exists')
+    if (user.isBanned) {
+      const error = httpError(403, 'This account has been suspended')
+      error.code = 'ACCOUNT_BANNED'
+      throw error
+    }
     req.user = user
     next()
   } catch (error) {

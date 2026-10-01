@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageCircle, UserRoundPlus, Users } from 'lucide-react'
+import { ArrowLeft, MessageCircle, UserMinus, UserRoundPlus, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import UserAvatar from '../components/users/UserAvatar'
@@ -17,6 +17,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [removingId, setRemovingId] = useState('')
 
   useEffect(() => {
     let current = true
@@ -38,6 +39,18 @@ export default function FriendsPage() {
     catch (requestError) { setError(requestError.response?.data?.message || 'Unable to open this conversation.') }
   }
 
+  const unaddFriend = async friend => {
+    if (!window.confirm(`Unadd ${friend.displayName || friend.username}? You will need to send or accept another friend request to reconnect.`)) return
+    setRemovingId(friend.id)
+    setError('')
+    try {
+      await userService.unaddFriend(friend.id)
+      setFriends(current => current.filter(entry => entry.id !== friend.id))
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || 'Unable to unadd this friend.')
+    } finally { setRemovingId('') }
+  }
+
   return <div className="search-page-shell friends-page-shell"><section className="search-page-card friends-page-card">
     <header className="friends-page-heading">
       <button type="button" className="ghost-button friends-back-button" onClick={() => navigate(-1)}><ArrowLeft size={16}/>Back</button>
@@ -48,6 +61,7 @@ export default function FriendsPage() {
     {loading ? <div className="neutral-state">Loading friends…</div> : !error && !friends.length ? <div className="friends-empty"><Users size={24}/><h2>No friends yet</h2><p>{isOwnList ? 'Friends you add will appear here.' : 'This person has not added any friends yet.'}</p></div> : <div className="search-results friends-results">{friends.map(friend => <article className="search-result friend-list-item" key={friend.id}>
       <button type="button" className="search-result-profile" onClick={() => navigate(`/profile/${friend.id}`)}><UserAvatar user={friend} alt="" showOnlineStatus/><span className="friend-list-identity"><strong>{friend.displayName || friend.username}</strong><small>@{friend.username}{friend.online ? ' · online' : ''}</small></span></button>
       {friend.relationship === 'friends' && <button type="button" className="ghost-button compact-action" onClick={() => messageFriend(friend)}><MessageCircle size={15}/>Message</button>}
+      {isOwnList && friend.relationship === 'friends' && <button type="button" className="ghost-button compact-action friend-remove-button" onClick={() => unaddFriend(friend)} disabled={removingId === friend.id}>{removingId === friend.id ? 'Removing…' : <><UserMinus size={15}/>Unadd</>}</button>}
       {friend.relationship === 'none' && <Link className="ghost-button compact-action" to={`/profile/${friend.id}`}>View profile</Link>}
       {friend.relationship === 'incoming' && <Link className="primary-button compact-action" to="/add-back"><UserRoundPlus size={15}/>Add back</Link>}
       {friend.relationship === 'outgoing' && <span className="friend-request-pending">Request sent</span>}

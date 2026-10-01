@@ -126,6 +126,11 @@ export async function login(req, res) {
   const input = parse(credentials, req.body)
   const user = await User.findOne({ email: input.email }).select('+passwordHash')
   if (!user || !(await bcrypt.compare(input.password, user.passwordHash))) throw httpError(401, 'Invalid email or password')
+  if (user.isBanned) {
+    const error = httpError(403, 'This account has been suspended')
+    error.code = 'ACCOUNT_BANNED'
+    throw error
+  }
   user.isOnline = true
   await user.save()
   res.json(authResponse(user))
