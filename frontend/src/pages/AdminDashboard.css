@@ -94,9 +94,14 @@
 .admin-broadcast-status.sending,.admin-broadcast-status.queued{background:rgba(59,130,246,.12);color:#93c5fd}
 .admin-broadcast-status.sent{background:rgba(34,197,94,.12);color:#4ade80}
 .admin-broadcast-status.failed{background:rgba(248,113,113,.12);color:#fca5a5}
+.admin-broadcast-actions{display:flex;align-items:center;gap:7px;flex:none}
+.admin-broadcast-delete{display:grid;place-items:center;width:28px;height:27px;border:1px solid rgba(248,113,113,.2);border-radius:8px;background:rgba(248,113,113,.07);color:#fca5a5;cursor:pointer}
+.admin-broadcast-delete:hover:not(:disabled){background:rgba(248,113,113,.16)}
+.admin-broadcast-delete:disabled{opacity:.5;cursor:wait}
 .app-shell.theme-light .admin-page .admin-broadcast-audience{background:rgba(37,99,235,.05)}
 .app-shell.theme-light .admin-page .admin-broadcast-form input,.app-shell.theme-light .admin-page .admin-broadcast-form textarea{background:#f3f8ff}
 .app-shell.theme-light .admin-page .admin-broadcast-status.sending,.app-shell.theme-light .admin-page .admin-broadcast-status.queued{color:#1d4ed8}
 .app-shell.theme-light .admin-page .admin-broadcast-status.sent{color:#15803d}
 .app-shell.theme-light .admin-page .admin-broadcast-status.failed,.app-shell.theme-light .admin-page .admin-broadcast-copy small{color:#b91c1c}
+.app-shell.theme-light .admin-page .admin-broadcast-delete{color:#b91c1c;border-color:rgba(220,38,38,.18);background:rgba(220,38,38,.05)}
 @media(max-width:560px){.admin-broadcast-audience{flex-wrap:wrap}.admin-broadcast-audience small{flex-basis:100%;margin-left:25px}.admin-broadcast-submit{align-items:flex-start;flex-direction:column}.admin-broadcast-submit button{width:100%}}

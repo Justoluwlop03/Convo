@@ -1,4 +1,4 @@
-import { Activity, ArrowDownRight, ArrowUpRight, Ban, ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Clock3, Database, Mail, MessageSquare, RefreshCw, Search, SearchX, Send, Server, ShieldCheck, Users, UserRoundCheck, Wifi } from 'lucide-react'
+import { Activity, ArrowDownRight, ArrowUpRight, Ban, ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Clock3, Database, Mail, MessageSquare, RefreshCw, Search, SearchX, Send, Server, ShieldCheck, Trash2, Users, UserRoundCheck, Wifi } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../services/api'
@@ -28,6 +28,8 @@ export default function AdminDashboard() {
   const [broadcastSending, setBroadcastSending] = useState(false)
   const [broadcastError, setBroadcastError] = useState('')
   const [broadcastNotice, setBroadcastNotice] = useState('')
+  const [broadcastHistoryError, setBroadcastHistoryError] = useState('')
+  const [deletingBroadcastId, setDeletingBroadcastId] = useState('')
   const refresh = useCallback(async () => {
     try {
       const response = await api.get('/admin/overview')
@@ -115,6 +117,18 @@ export default function AdminDashboard() {
     } finally { setBroadcastSending(false) }
   }
 
+  const deleteBroadcast = async (broadcast) => {
+    if (!window.confirm(`Delete “${broadcast.subject}” from broadcast history? Emails already sent cannot be recalled.`)) return
+    setDeletingBroadcastId(broadcast.id)
+    setBroadcastHistoryError('')
+    try {
+      await api.delete(`/admin/broadcasts/${broadcast.id}`)
+      setBroadcasts(current => current.filter(item => item.id !== broadcast.id))
+    } catch (requestError) {
+      setBroadcastHistoryError(requestError.response?.data?.message || 'Unable to delete this broadcast record.')
+    } finally { setDeletingBroadcastId('') }
+  }
+
   const maxActivity = useMemo(() => Math.max(1, ...data.activity.map(day => day.count)), [data.activity])
   const cards = [
     { label: 'Total users', value: data.metrics.users, detail: `${data.metrics.newUsers || 0} joined this week`, Icon: Users, color: 'violet' },
@@ -174,7 +188,7 @@ export default function AdminDashboard() {
         {broadcastNotice && <p className="admin-broadcast-notice" role="status"><CheckCircle2 size={15}/>{broadcastNotice}</p>}
         <div className="admin-broadcast-submit"><span>Sending is limited to 3 broadcasts per hour.</span><button type="submit" disabled={broadcastSending || loading || !data.metrics.users}><Send size={15}/>{broadcastSending ? 'Queueing…' : 'Send broadcast'}</button></div>
       </form>
-      <div className="admin-broadcast-history"><h4>Recent broadcasts</h4>{broadcasts.length ? broadcasts.map(item => <div className="admin-broadcast-row" key={item.id}><div className="admin-broadcast-copy"><strong>{item.subject}</strong><span>{item.sentCount.toLocaleString()} / {item.recipientsCount.toLocaleString()} sent · {new Date(item.createdAt).toLocaleString()}</span>{item.error && <small>{item.error}</small>}</div><span className={`admin-broadcast-status ${item.status}`}>{item.status}</span></div>) : <p className="admin-list-empty">No broadcasts sent yet.</p>}</div>
+      <div className="admin-broadcast-history"><h4>Recent broadcasts</h4>{broadcastHistoryError && <p className="admin-user-error" role="alert">{broadcastHistoryError}</p>}{broadcasts.length ? broadcasts.map(item => <div className="admin-broadcast-row" key={item.id}><div className="admin-broadcast-copy"><strong>{item.subject}</strong><span>{item.sentCount.toLocaleString()} / {item.recipientsCount.toLocaleString()} sent · {new Date(item.createdAt).toLocaleString()}</span>{item.error && <small>{item.error}</small>}</div><div className="admin-broadcast-actions"><span className={`admin-broadcast-status ${item.status}`}>{item.status}</span>{['sent', 'failed'].includes(item.status) && <button className="admin-broadcast-delete" type="button" title="Delete from history" aria-label={`Delete ${item.subject} from broadcast history`} disabled={deletingBroadcastId === item.id} onClick={() => deleteBroadcast(item)}><Trash2 size={14}/></button>}</div></div>) : <p className="admin-list-empty">No broadcasts sent yet.</p>}</div>
     </section>
     <footer className="admin-footnote"><ArrowDownRight size={14}/> Dashboard refreshes every 30 seconds. User details are limited to account name and email.</footer>
   </section>

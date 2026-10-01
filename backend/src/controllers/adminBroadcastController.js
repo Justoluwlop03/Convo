@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import mongoose from 'mongoose'
 import AdminBroadcast from '../models/AdminBroadcast.js'
 import User from '../models/User.js'
 
@@ -67,6 +68,18 @@ async function deliverBroadcast(broadcastId, recipients, subject, message) {
 export async function listAdminBroadcasts(req, res) {
   const broadcasts = await AdminBroadcast.find().sort({ createdAt: -1 }).limit(10).lean()
   res.json({ broadcasts: broadcasts.map(broadcastView) })
+}
+
+export async function deleteAdminBroadcast(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Broadcast not found.' })
+  const broadcast = await AdminBroadcast.findOneAndDelete({
+    _id: req.params.id,
+    status: { $in: ['sent', 'failed'] },
+  })
+  if (broadcast) return res.json({ deleted: true, id: broadcast._id.toString() })
+  const exists = await AdminBroadcast.exists({ _id: req.params.id })
+  if (!exists) return res.status(404).json({ message: 'Broadcast not found.' })
+  return res.status(409).json({ message: 'A queued or sending broadcast cannot be deleted.' })
 }
 
 export async function createAdminBroadcast(req, res) {

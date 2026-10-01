@@ -5,7 +5,7 @@ import User from '../models/User.js'
 import Message from '../models/Message.js'
 import Chat from '../models/Chat.js'
 import Group from '../models/Group.js'
-import { createAdminBroadcast, listAdminBroadcasts } from '../controllers/adminBroadcastController.js'
+import { createAdminBroadcast, deleteAdminBroadcast, listAdminBroadcasts } from '../controllers/adminBroadcastController.js'
 import { adminBroadcastRateLimit } from '../middleware/rateLimitMiddleware.js'
 
 const router = Router()
@@ -70,6 +70,7 @@ router.get('/users', async (req, res, next) => {
 
 router.get('/broadcasts', listAdminBroadcasts)
 router.post('/broadcasts', adminBroadcastRateLimit, createAdminBroadcast)
+router.delete('/broadcasts/:id', deleteAdminBroadcast)
 
 router.patch('/users/:id/ban', async (req, res, next) => {
   try {
