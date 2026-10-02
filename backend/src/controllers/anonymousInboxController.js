@@ -4,6 +4,7 @@ import AnonymousMessage from '../models/AnonymousMessage.js'
 import { httpError } from '../middleware/errorMiddleware.js'
 
 const messageView = message => ({ id: message._id.toString(), text: message.text, reported: message.reported, createdAt: message.createdAt })
+const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export async function getInboxSettings(req, res) {
   res.json({ enabled: req.user.anonymousInboxEnabled })
@@ -19,7 +20,8 @@ export async function updateInboxSettings(req, res) {
 export async function sendAnonymousMessage(req, res) {
   const text = typeof req.body?.text === 'string' ? req.body.text.trim() : ''
   if (!text || text.length > 1000) throw httpError(400, 'Write a message between 1 and 1000 characters')
-  const recipient = await User.findOne({ username: String(req.params.username).toLowerCase() }).select('_id anonymousInboxEnabled')
+  const username = String(req.params.username).trim()
+  const recipient = await User.findOne({ username: { $regex: `^${escapeRegex(username)}$`, $options: 'i' } }).select('_id anonymousInboxEnabled')
   if (!recipient || !recipient.anonymousInboxEnabled) throw httpError(404, 'This inbox is unavailable')
   await AnonymousMessage.create({ recipient: recipient._id, text })
   res.status(201).json({ sent: true })
