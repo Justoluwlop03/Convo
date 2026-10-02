@@ -5,3 +5,11 @@ export const passwordResetRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limi
 export const searchRateLimit = rateLimit({ windowMs: 60 * 1000, limit: 60, standardHeaders: true, legacyHeaders: false })
 export const turnCredentialsRateLimit = rateLimit({ windowMs: 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false })
 export const adminBroadcastRateLimit = rateLimit({ windowMs: 60 * 60 * 1000, limit: 3, standardHeaders: true, legacyHeaders: false })
+export const apiWriteRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: req => ['GET', 'HEAD', 'OPTIONS'].includes(req.method),
+})
+export const mediaUploadRateLimit = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false })

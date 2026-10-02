@@ -2,10 +2,11 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { postMediaUpload } from '../middleware/uploadMiddleware.js'
 import { createPost, createPostComment, deletePost, deletePostComment, getPost, likePost, listFeedPosts, listPostComments, listPostLikes, listUserPosts, recordPostView, unlikePost } from '../controllers/postController.js'
+import { mediaUploadRateLimit } from '../middleware/rateLimitMiddleware.js'
 
 const router = Router()
 router.use(requireAuth)
-router.post('/', postMediaUpload, createPost)
+router.post('/', mediaUploadRateLimit, postMediaUpload, createPost)
 router.get('/feed', listFeedPosts)
 router.get('/user/:userId', listUserPosts)
 router.post('/:postId/view', recordPostView)

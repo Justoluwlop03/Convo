@@ -2,10 +2,11 @@ import { Router } from 'express'
 import { createStory, deleteStory, getStory, listStories, listStoryViews, listUserStories, reactToStory, recordStoryView, replyToStory } from '../controllers/storyController.js'
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { storyUpload } from '../middleware/uploadMiddleware.js'
+import { mediaUploadRateLimit } from '../middleware/rateLimitMiddleware.js'
 
 const router = Router()
 router.use(requireAuth)
-router.post('/', storyUpload, createStory)
+router.post('/', mediaUploadRateLimit, storyUpload, createStory)
 router.get('/', listStories)
 router.get('/user/:userId', listUserStories)
 router.get('/:storyId', getStory)

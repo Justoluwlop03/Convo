@@ -3,6 +3,7 @@ import { completePasswordReset, deleteAvatarImage, login, me, register, requestP
 import { requireAuth } from '../middleware/authMiddleware.js'
 import { authRateLimit, passwordResetRateLimit } from '../middleware/rateLimitMiddleware.js'
 import { avatarUpload } from '../middleware/uploadMiddleware.js'
+import { mediaUploadRateLimit } from '../middleware/rateLimitMiddleware.js'
 
 const router = Router()
 router.post('/register', authRateLimit, register)
@@ -11,6 +12,6 @@ router.post('/forgot-password', passwordResetRateLimit, requestPasswordReset)
 router.post('/reset-password', passwordResetRateLimit, completePasswordReset)
 router.get('/me', requireAuth, me)
 router.patch('/profile', requireAuth, updateProfile)
-router.put('/profile/avatar', requireAuth, avatarUpload, updateAvatar)
+router.put('/profile/avatar', requireAuth, mediaUploadRateLimit, avatarUpload, updateAvatar)
 router.delete('/profile/avatar', requireAuth, deleteAvatarImage)
 export default router

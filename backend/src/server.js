@@ -22,6 +22,7 @@ import { configureCloudinary } from './config/cloudinary.js'
 import adminRoutes from './routes/adminRoutes.js'
 import AdminBroadcast from './models/AdminBroadcast.js'
 import anonymousInboxRoutes from './routes/anonymousInboxRoutes.js'
+import { apiWriteRateLimit } from './middleware/rateLimitMiddleware.js'
 
 // Load the backend configuration regardless of the directory used to start Node.
 // The previous path pointed into the frontend source tree, so the API ignored
@@ -31,6 +32,9 @@ configureCloudinary()
 
 const app = express()
 const server = http.createServer(app)
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS ?? (process.env.NODE_ENV === 'production' ? '1' : '0'))
+if (!Number.isInteger(trustProxyHops) || trustProxyHops < 0) throw new Error('TRUST_PROXY_HOPS must be a non-negative integer')
+app.set('trust proxy', trustProxyHops === 0 ? false : trustProxyHops)
 const configuredOrigins = (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map(origin => origin.trim()).filter(Boolean)
 // Vite may be opened on either loopback hostname. They are different browser
 // origins, so allow both during local development even if CLIENT_URL has only one.
@@ -47,6 +51,7 @@ app.set('io', io)
 
 app.use(helmet())
 app.use(cors({ origin: corsOrigins, credentials: true }))
+app.use('/api', apiWriteRateLimit)
 app.use(express.json({ limit: '1mb' }))
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRoutes)
