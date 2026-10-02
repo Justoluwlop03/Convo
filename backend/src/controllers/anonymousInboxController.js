@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import User from '../models/User.js'
 import AnonymousMessage from '../models/AnonymousMessage.js'
 import { httpError } from '../middleware/errorMiddleware.js'
+import { sendAnonymousMessagePush } from '../utils/pushNotifications.js'
 
 const messageView = message => ({ id: message._id.toString(), text: message.text, reported: message.reported, createdAt: message.createdAt })
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -23,7 +24,8 @@ export async function sendAnonymousMessage(req, res) {
   const username = String(req.params.username).trim()
   const recipient = await User.findOne({ username: { $regex: `^${escapeRegex(username)}$`, $options: 'i' } }).select('_id anonymousInboxEnabled')
   if (!recipient || !recipient.anonymousInboxEnabled) throw httpError(404, 'This inbox is unavailable')
-  await AnonymousMessage.create({ recipient: recipient._id, text })
+  const message = await AnonymousMessage.create({ recipient: recipient._id, text })
+  sendAnonymousMessagePush(recipient._id, { text, messageId: message._id.toString() }).catch(() => {})
   res.status(201).json({ sent: true })
 }
 

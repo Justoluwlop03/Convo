@@ -71,6 +71,16 @@ export function sendMessagePush(userId, { conversationId, title, text, messageId
   return sendPush(userId, { title, text, privateText: 'You have a new message', notificationId: messageId, conversationId, muteConversation: true })
 }
 
+export function sendAnonymousMessagePush(userId, { text, messageId }) {
+  return sendPush(userId, {
+    title: 'New anonymous message',
+    text,
+    privateText: 'You have a new anonymous message',
+    notificationId: messageId,
+    destination: '/inbox',
+  })
+}
+
 export function sendFriendPush(userId, { title, text, privateText = 'You have a friend update', notificationId, destination = '/' }) {
   return sendPush(userId, { title, text, privateText, notificationId, destination })
 }
