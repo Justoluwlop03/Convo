@@ -1,4 +1,4 @@
-import { Bell, Clapperboard, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, ShieldCheck, SunMedium, UserPlus, UserRound, Users } from 'lucide-react'
+import { Bell, Clapperboard, Inbox, LogOut, Menu, MessageSquareText, MoonStar, Search, Settings, ShieldCheck, SunMedium, UserPlus, UserRound, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
@@ -71,6 +71,7 @@ export default function AppLayout() {
                         <UserRound size={18} />
                         Profile
                     </NavLink>
+                    <NavLink to="/inbox" className="nav-link"><Inbox size={18}/>Anonymous inbox</NavLink>
                     {isAdmin && <NavLink to="/admin" className="nav-link">
                         <ShieldCheck size={18} />
                         Admin dashboard

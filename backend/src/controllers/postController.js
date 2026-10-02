@@ -94,8 +94,9 @@ export async function listUserPosts(req, res) {
 
 export async function listFeedPosts(req, res) {
   const { page, limit } = pagination(req.query)
-  const userIds = [...new Set([req.user._id.toString(), ...(req.user.friends || []).map(id => id.toString())])]
-  const found = await Post.find({ user: { $in: userIds } }).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit + 1)
+  const usersWhoBlockedViewer = await User.find({ blockedUsers: req.user._id }).distinct('_id')
+  const excludedUserIds = [...new Set([...(req.user.blockedUsers || []).map(id => id.toString()), ...usersWhoBlockedViewer.map(id => id.toString())])]
+  const found = await Post.find({ user: { $nin: excludedUserIds } }).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit + 1)
     .populate('user', 'username displayName avatar bio about isOnline lastSeen createdAt')
   const hasMore = found.length > limit
   const posts = found.slice(0, limit)

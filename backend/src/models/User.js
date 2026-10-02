@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
   avatar: { type: String, default: '' },
   bio: { type: String, default: '', trim: true, maxlength: 160 },
   about: { type: String, default: '', trim: true, maxlength: 1000 },
+  anonymousInboxEnabled: { type: Boolean, default: false },
   avatarPublicId: { type: String, default: '', select: false },
   isOnline: { type: Boolean, default: false },
   isBanned: { type: Boolean, default: false, index: true },

@@ -1,4 +1,4 @@
-import { Bell, Clapperboard, LogOut, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound, Users, X } from 'lucide-react'
+import { Bell, Clapperboard, Inbox, LogOut, MessageSquareText, MoonStar, Search, Settings, SunMedium, UserPlus, UserRound, Users, X } from 'lucide-react'
 import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import UserAvatar from '../users/UserAvatar'
@@ -44,6 +44,7 @@ export default function MobileSidebar({ isOpen, onClose, user, onLogout, isLight
 
                 <nav className="mobile-drawer-nav">
                     <NavLink to="/profile" className="mobile-drawer-link" onClick={onClose}><UserRound size={18} />Profile</NavLink>
+                    <NavLink to="/inbox" className="mobile-drawer-link" onClick={onClose}><Inbox size={18}/>Anonymous inbox</NavLink>
                     <NavLink to="/" className="mobile-drawer-link" end onClick={onClose}><MessageSquareText size={18} />Messages</NavLink>
                     <NavLink to="/search" className="mobile-drawer-link" onClick={onClose}><Search size={18} />Find people</NavLink>
                     <NavLink to="/reels" className="mobile-drawer-link" onClick={onClose}><Clapperboard size={18}/>Posts</NavLink>

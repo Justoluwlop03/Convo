@@ -21,6 +21,7 @@ import { errorHandler, notFound } from './middleware/errorMiddleware.js'
 import { configureCloudinary } from './config/cloudinary.js'
 import adminRoutes from './routes/adminRoutes.js'
 import AdminBroadcast from './models/AdminBroadcast.js'
+import anonymousInboxRoutes from './routes/anonymousInboxRoutes.js'
 
 // Load the backend configuration regardless of the directory used to start Node.
 // The previous path pointed into the frontend source tree, so the API ignored
@@ -50,6 +51,7 @@ app.use(express.json({ limit: '1mb' }))
 app.get('/health', (req, res) => res.json({ status: 'ok' }))
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
+app.use('/api/anonymous-inbox', anonymousInboxRoutes)
 app.use('/api/chats', chatRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/groups', groupRoutes)

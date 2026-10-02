@@ -15,6 +15,7 @@ import ReelsPage from './pages/ReelsPage'
 import FriendsPage from './pages/FriendsPage'
 import AdminDashboard from './pages/AdminDashboard'
 import { CallProvider } from './context/CallContext'
+import AnonymousInboxPage from './pages/AnonymousInboxPage'
 import { StoryProvider } from './context/StoryContext'
 import './App.css'
 
@@ -28,6 +29,7 @@ function AppShell() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/ask/:username" element={<AnonymousInboxPage publicOnly />} />
         <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route path="/register" element={user ? <Navigate to="/" replace /> : <RegisterPage />} />
         <Route path="/forgot-password" element={user ? <Navigate to="/" replace /> : <ForgotPasswordPage />} />
@@ -48,6 +50,7 @@ function AppShell() {
           <Route path="/friends/:userId" element={<FriendsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />
+          <Route path="/inbox" element={<AnonymousInboxPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 
